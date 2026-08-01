@@ -89,6 +89,9 @@ def configure_model(model: str | None = None, *, quiet: bool = False) -> str:
         "Legend: # solid, = platform, . empty, S player_spawn (exactly one), X exit (exactly one), "
         "C carrot, G easter_egg, N snake. "
         "Side scroller: width 30-50, height 12-16, ground along the bottom, a few platforms. "
+        "CRITICAL physics: respect max_jump_tiles from the prompt — never place a platform more than "
+        "that many tiles ABOVE the nearest lower floor/platform. Stair-step climbs (1–2 tiles up). "
+        "No floating islands the player cannot reach with a single jump. "
         "Top down: 3-5 room-like chambers with # walls, corridors, 10-16 tiles wide. "
         "Exactly the requested number of levels if specified, else 2. "
         "Also fill art_shopping_list and short layout_notes. "
@@ -211,12 +214,32 @@ async def run_mechanics(concept: ConceptDoc, brief: StudioBrief) -> MechanicsDoc
     return doc
 
 
+# Must match Phaser arcade gravity in phaser_builder.py
+ARCADE_GRAVITY_Y = 1000.0
+
+
+def max_jump_tiles(mechanics: MechanicsDoc, tile_size: int = 32) -> int:
+    """Approx max jump height in tiles from jump_velocity + gravity (side_scroller)."""
+    if mechanics.game_type != "side_scroller":
+        return 99
+    v = abs(float(mechanics.player.jump_velocity))
+    # v^2 / (2g) peak height in pixels
+    peak_px = (v * v) / (2.0 * ARCADE_GRAVITY_Y)
+    # Leave a little slack for jump timing / sprite size
+    tiles = int(peak_px // max(1, tile_size))
+    return max(1, min(tiles, 4))  # cap so agents don't invent mega-jumps
+
+
 async def run_levels(
     concept: ConceptDoc, mechanics: MechanicsDoc, brief: StudioBrief
 ) -> LevelsDoc:
+    jump_tiles = max_jump_tiles(mechanics)
     prompt = (
         f"Concept:\n{concept.model_dump_json(indent=2)}\n\n"
         f"Mechanics:\n{mechanics.model_dump_json(indent=2)}\n\n"
+        f"PHYSICS (side_scroller): max_jump_tiles = {jump_tiles}. "
+        f"Platforms (`=`) must be at most {jump_tiles} tiles above the nearest lower floor/#/=. "
+        f"Stair-step upward climbs. Do not place unreachable floating platforms.\n\n"
         f"Constraints:\n- " + "\n- ".join(brief.constraints or []) + "\n"
         "Return playable ASCII maps with consistent row lengths."
     )
@@ -231,6 +254,8 @@ async def run_levels(
         rows = [r.ljust(width, ".")[:width] for r in lv.rows]
         rows = [_strip_markers(r) for r in rows]
         rows = _ensure_ground(rows)
+        if mechanics.game_type == "side_scroller":
+            rows = _clamp_platforms_to_jump(rows, jump_tiles)
         rows = _place_on_walkable(rows, "S", near="start")
         rows = _place_on_walkable(rows, "X", near="end")
         lv.width = width
@@ -252,6 +277,59 @@ def _ensure_ground(rows: list[str]) -> list[str]:
     if bottom.count("#") < max(3, len(bottom) // 3):
         rows[-1] = "#" * len(bottom)
     return rows
+
+
+def _is_solid(ch: str) -> bool:
+    return ch in "#="
+
+
+def _clamp_platforms_to_jump(rows: list[str], max_up: int) -> list[str]:
+    """
+    Lower or remove `=` platforms that sit more than max_up tiles above the
+    nearest solid below (same column). Keeps jumps physically plausible.
+    """
+    if not rows or max_up < 1:
+        return rows
+    h = len(rows)
+    w = len(rows[0])
+    grid = [list(r) for r in rows]
+
+    # Process from bottom to top so we settle platforms against already-fixed ones
+    for y in range(h - 2, -1, -1):
+        for x in range(w):
+            if grid[y][x] != "=":
+                continue
+            # Find nearest solid below this platform tile
+            below_y = None
+            for yy in range(y + 1, h):
+                if _is_solid(grid[yy][x]):
+                    below_y = yy
+                    break
+            if below_y is None:
+                # No support below — drop toward ground
+                grid[y][x] = "."
+                dest = max(1, h - 3)
+                if not _is_solid(grid[dest][x]):
+                    grid[dest][x] = "="
+                continue
+            # Stand on platform at y-1; stand on below solid at below_y-1
+            # Vertical rise in tiles = (below_y - 1) - (y - 1) = below_y - y
+            rise = below_y - y
+            if rise <= max_up:
+                continue
+            # Move platform down so rise == max_up
+            new_y = below_y - max_up
+            if new_y <= 0 or new_y >= h - 1:
+                grid[y][x] = "."
+                continue
+            if new_y != y:
+                grid[y][x] = "."
+                if grid[new_y][x] in ".C":
+                    grid[new_y][x] = "="
+                elif not _is_solid(grid[new_y][x]):
+                    grid[new_y][x] = "="
+
+    return ["".join(r) for r in grid]
 
 
 def _walkable_cells(rows: list[str]) -> list[tuple[int, int]]:
