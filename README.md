@@ -2,6 +2,8 @@
 
 Agent pipeline from the Sasin *2D Games with AI Agents* lecture: concept → mechanics → levels → HTML sprites (with critic) → Phaser 3 CDN game.
 
+![Boxing rabbit sprite sheet (down / up / left / right)](rabbit_spritesheet.png)
+
 ## Layout
 
 ```
