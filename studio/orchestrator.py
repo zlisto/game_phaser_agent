@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from pathlib import Path
 
 from .agents import (
@@ -12,7 +13,9 @@ from .agents import (
     run_concept,
     run_levels,
     run_mechanics,
+    run_sound,
 )
+from .blips import render_sound_bundle
 from .html_sprites import run_character_art_pipeline
 from .models import (
     ArtBundle,
@@ -26,30 +29,47 @@ from .phaser_builder import build_phaser_project
 from .render_art import write_layout_preview
 
 
+def format_elapsed(seconds: float) -> str:
+    """Wall-clock duration as e.g. '4m 32s' or '48s'."""
+    total = max(0, int(round(seconds)))
+    m, s = divmod(total, 60)
+    h, m = divmod(m, 60)
+    if h:
+        return f"{h}h {m}m {s}s"
+    if m:
+        return f"{m}m {s}s"
+    return f"{s}s"
+
+
 async def run_studio(brief: StudioBrief, root: Path | None = None) -> StudioReport:
     root = root or Path.cwd()
     from .agents import MODEL as ACTIVE_MODEL
 
-    print(f"[1/6] Concept Agent... ({ACTIVE_MODEL})")
+    t0 = time.perf_counter()
+    print(f"[1/7] Concept Agent... ({ACTIVE_MODEL})")
     concept = await run_concept(brief)
     print(f"      -> {concept.title}")
 
-    print("[2/6] Mechanics Agent (includes sprite poses)...")
+    print("[2/7] Mechanics Agent (poses + HUD + SFX cues)...")
     mechanics = await run_mechanics(concept, brief)
     print(
         f"      -> hp={mechanics.player.max_hp}, "
-        f"enemies={len(mechanics.enemies)}, poses={len(mechanics.sprite_poses)}"
+        f"enemies={len(mechanics.enemies)}, poses={len(mechanics.sprite_poses)}, "
+        f"sfx={len(mechanics.sfx)}"
     )
 
-    print("[3/6] Levels Agent...")
+    print("[3/7] Levels Agent (maps + BGM briefs)...")
     levels = await run_levels(concept, mechanics, brief)
-    print(f"      -> {len(levels.levels)} level(s)")
+    print(
+        f"      -> {len(levels.levels)} level(s), "
+        f"bgm tracks={len(levels.background_music)}"
+    )
 
-    print("[4/6] Art Agent (names + detailed descriptions)...")
+    print("[4/7] Art Agent (names + detailed descriptions)...")
     art = await run_art(concept, mechanics, levels, brief)
     print(f"      -> {len(art.sprites)} sprite briefs")
 
-    print("[5/6] HTML sprites + screenshots + critic...")
+    print("[5/7] HTML sprites + screenshots + critic...")
     out_dir = (root / brief.output_folder).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "data").mkdir(exist_ok=True)
@@ -67,22 +87,43 @@ async def run_studio(brief: StudioBrief, root: Path | None = None) -> StudioRepo
         out_dir, concept, art, critic_rounds=brief.critic_rounds
     )
 
-    print("[6/6] Assembler Agent (+ Phaser wire-up)...")
+    print("[6/7] Sound Agent (blip recipes -> WAV)...")
+    sound = await run_sound(concept, mechanics, levels)
+    (out_dir / "data" / "sound.json").write_text(
+        sound.model_dump_json(indent=2), encoding="utf-8"
+    )
+    audio_files = render_sound_bundle(sound, out_dir / "assets")
+    print(f"      -> {len(sound.sfx)} sfx, {len(sound.music)} music loops")
+
+    print("[7/7] Assembler Agent (+ Phaser wire-up, HUD, audio)...")
     plan = await run_assembler_plan(concept, mechanics, levels, brief)
     preview = write_layout_preview(out_dir, levels)
     files = build_phaser_project(out_dir, concept, mechanics, levels, plan)
     files.extend(f"assets/{n}" for n in art_result["sheets"])
     files.extend(f"assets/{n}" for n in art_result["world_files"])
+    files.extend(audio_files)
     files.append(preview)
     files.append("data/art.json")
     files.append("data/frame_map.json")
     files.append("data/art_critiques.json")
+    files.append("data/sound.json")
 
     from .agents import MODEL
 
+    elapsed = time.perf_counter() - t0
+    elapsed_human = format_elapsed(elapsed)
+
     (out_dir / "data" / "run_meta.json").write_text(
         json.dumps(
-            {"model": MODEL, "critic_rounds": brief.critic_rounds, "mode": "full"},
+            {
+                "model": MODEL,
+                "critic_rounds": brief.critic_rounds,
+                "mode": "full",
+                "elapsed_seconds": round(elapsed, 2),
+                "elapsed_human": elapsed_human,
+                "sfx_count": len(sound.sfx),
+                "music_count": len(sound.music),
+            },
             indent=2,
         ),
         encoding="utf-8",
@@ -95,12 +136,16 @@ async def run_studio(brief: StudioBrief, root: Path | None = None) -> StudioRepo
         how_to_run=f'cd "{out_dir}" && npx --yes serve .',
         summary=(
             f"Built '{concept.title}' ({concept.game_type}) with "
-            f"{len(levels.levels)} levels and {len(art.sprites)} HTML sprites into {out_dir} "
-            f"(model={MODEL})"
+            f"{len(levels.levels)} levels, {len(art.sprites)} HTML sprites, "
+            f"{len(sound.sfx)} sfx, {len(sound.music)} bgm into {out_dir} "
+            f"(model={MODEL}, took {elapsed_human})"
         ),
+        elapsed_seconds=round(elapsed, 2),
+        elapsed_human=elapsed_human,
     )
     (out_dir / "STUDIO_REPORT.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
     print(report.summary)
+    print(f"Took: {elapsed_human} ({elapsed:.1f}s)")
     print("How to run:", report.how_to_run)
     return report
 
@@ -113,6 +158,7 @@ async def rerun_art_only(
     """Rebuild character sprites from existing concept/mechanics/levels."""
     from .agents import MODEL, configure_model
 
+    t0 = time.perf_counter()
     if model:
         configure_model(model)
 
@@ -155,15 +201,24 @@ async def rerun_art_only(
         win_text="Harvest saved — feast time!",
         lose_text="Bun needs another try...",
         notes_for_player=[
-            "Punch or stomp snakes",
-            "Carrots heal",
-            "Eggs power punch",
+            "Punch or stomp snakes — walking into them is death",
+            "Wall-jump off platform sides",
+            "Carrots heal · eggs power punch",
         ],
     )
     phaser_files = build_phaser_project(game_dir, concept, mechanics, levels, plan)
     write_layout_preview(game_dir, levels)
 
-    meta = {"model": MODEL, "critic_rounds": critic_rounds, "mode": "art-from"}
+    elapsed = time.perf_counter() - t0
+    elapsed_human = format_elapsed(elapsed)
+
+    meta = {
+        "model": MODEL,
+        "critic_rounds": critic_rounds,
+        "mode": "art-from",
+        "elapsed_seconds": round(elapsed, 2),
+        "elapsed_human": elapsed_human,
+    }
     (game_dir / "data" / "run_meta.json").write_text(
         json.dumps(meta, indent=2), encoding="utf-8"
     )
@@ -186,10 +241,13 @@ async def rerun_art_only(
         how_to_run=f'cd "{game_dir}" && npx --yes serve .',
         summary=(
             f"Rebuilt HTML sprite sheets + Phaser for {game_dir} "
-            f"({len(art.sprites)} poses, model={MODEL})"
+            f"({len(art.sprites)} poses, model={MODEL}, took {elapsed_human})"
         ),
+        elapsed_seconds=round(elapsed, 2),
+        elapsed_human=elapsed_human,
     )
     print(report.summary)
+    print(f"Took: {elapsed_human} ({elapsed:.1f}s)")
     return report
 
 

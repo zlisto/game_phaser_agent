@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2D Games with AI Agents — Sasin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reset.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/theme/dracula.css" id="theme" />
+  <style>
+    .reveal { font-size: 28px; }
+    .reveal .slides { text-align: left; }
+    .reveal h1, .reveal h2, .reveal h3 {
+      text-transform: none;
+      letter-spacing: -0.02em;
+    }
+    .reveal h1 { font-size: 2.4em; }
+    .reveal h2 { font-size: 1.45em; margin-bottom: 0.3em; }
+    .reveal h3 { font-size: 1.02em; color: #bd93f9; margin: 0 0 0.3em; }
+    .reveal p, .reveal li { line-height: 1.35; }
+    .reveal ul { display: block; margin-left: 1.05em; }
+    .reveal .eyebrow {
+      color: #8be9fd;
+      font-size: 0.52em;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 0.25em;
+    }
+    .reveal .muted { color: #6272a4; }
+    .reveal .card .muted,
+    .reveal .card p.muted { color: #a2aac6; }
+    .reveal .pink { color: #ff79c6; }
+    .reveal .red { color: #ff5555; }
+    .reveal .green { color: #50fa7b; }
+    .reveal .orange { color: #ffb86c; }
+    .reveal .purple { color: #bd93f9; }
+    .reveal .center-slide { text-align: center; }
+    .reveal .center-slide h1 { margin-left: auto; margin-right: auto; }
+    .reveal .title-slide {
+      padding-top: 0.35em;
+      box-sizing: border-box;
+    }
+    .reveal .title-slide h1 {
+      font-size: 2.2em;
+      margin: 0 auto 0.25em;
+      line-height: 1.1;
+      padding-top: 0.05em;
+    }
+    .reveal .title-slide .byline {
+      color: #bd93f9;
+      font-size: 0.85em;
+      margin: 0 0 0.55em;
+      font-weight: 600;
+    }
+    .reveal .title-hero {
+      width: min(680px, 94%);
+      margin: 0.35em auto 0;
+      display: block;
+    }
+    .reveal .title-hero svg { width: 100%; height: auto; display: block; }
+
+    /* Dense fill aesthetic */
+    .reveal .fill .grid-2,
+    .reveal .fill .grid-3,
+    .reveal .fill .grid-4 {
+      display: grid;
+      gap: 0.55em;
+      margin: 0.3em 0 0.45em;
+      align-items: stretch;
+    }
+    .reveal .fill .grid-2 { grid-template-columns: 1fr 1fr; }
+    .reveal .fill .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .reveal .fill .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .reveal .card {
+      background: #21222c;
+      border: 1px solid #44475a;
+      border-radius: 10px;
+      padding: 0.65em 0.75em;
+      font-size: 0.72em;
+      display: flex;
+      flex-direction: column;
+    }
+    .reveal .fill .card { min-height: 9.5em; }
+    .reveal .fill .grid-3 .card,
+    .reveal .fill .grid-4 .card { min-height: 7.2em; }
+    .reveal .card.soft { background: #282a36; border-color: #bd93f9; }
+    .reveal .card p, .reveal .card li { font-size: 0.95em; }
+    .reveal .card ul { margin: 0.35em 0 0 1em; flex: 1; }
+    .reveal .card li { margin: 0.22em 0; }
+    .reveal .block-foot {
+      margin-top: auto;
+      padding-top: 0.5em;
+      border-top: 1px solid #44475a;
+      color: #8be9fd;
+      font-size: 0.9em;
+    }
+    .reveal .strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.4em;
+      margin: 0.15em 0 0.35em;
+    }
+    .reveal .strip.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .reveal .strip .card {
+      font-size: 0.56em;
+      text-align: center;
+      padding: 0.5em 0.35em;
+      min-height: 0;
+    }
+    .reveal .strip .card strong {
+      display: block;
+      color: #f1fa8c;
+      font-size: 1.05em;
+      margin-bottom: 0.15em;
+    }
+    .reveal .note {
+      border-left: 3px solid #ff79c6;
+      padding-left: 0.55em;
+      color: #f8f8f2;
+      font-size: 0.7em;
+      margin-top: 0.25em;
+    }
+    .reveal .quote {
+      font-size: 1.05em;
+      color: #f1fa8c;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .reveal .kicker {
+      color: #ffb86c;
+      font-size: 0.68em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.2em;
+    }
+    .reveal pre.codeish {
+      background: #21222c;
+      border: 1px solid #44475a;
+      border-radius: 10px;
+      padding: 0.65em 0.8em;
+      font-size: 0.46em;
+      box-shadow: none;
+      width: 100%;
+      max-width: 100%;
+      margin: 0.25em 0 0.35em;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      box-sizing: border-box;
+      color: #f8f8f2;
+    }
+    .reveal code {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .reveal .sheet {
+      background: #21222c;
+      border: 1px solid #44475a;
+      border-radius: 10px;
+      padding: 0.45em;
+      margin: 0.25em 0 0.35em;
+    }
+    /* Keep showcase images inside the board (HUD pattern extended) */
+    .reveal .sheet img {
+      width: 100%;
+      max-height: 11em;
+      height: auto;
+      display: block;
+      object-fit: contain;
+      object-position: center;
+      background: #191a21;
+    }
+    .reveal .compare + .sheet img {
+      max-height: 7.2em;
+    }
+    /* Asset showcase: image + supporting cards need a shorter sheet */
+    .reveal .sheet:has(+ .grid-2) img,
+    .reveal .sheet:has(+ .grid-3) img {
+      max-height: 8.5em;
+    }
+    .reveal .sheet.hud-preview {
+      margin: 0;
+      padding: 0.3em;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      max-height: 100%;
+      overflow: hidden;
+    }
+    .reveal .sheet.hud-preview img {
+      width: 100%;
+      max-height: 7.8em;
+      height: auto;
+      flex: 0 1 auto;
+      object-fit: contain;
+      object-position: top center;
+      background: #191a21;
+      border-radius: 6px;
+    }
+    /* Parallel art mini-sheets: cap so bottom cards stay on board */
+    .reveal .fill .grid-3 > .card img {
+      max-height: 3.6em;
+      object-fit: contain;
+      width: 100%;
+    }
+    .reveal .sheet.hud-preview .cell-labels {
+      margin-top: 0.2em;
+      flex: 0 0 auto;
+      font-size: 0.48em;
+    }
+    .reveal .cell-labels {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.3em;
+      margin-top: 0.3em;
+      text-align: center;
+      font-size: 0.48em;
+      color: #8be9fd;
+      opacity: 0.85;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .reveal .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.35em;
+      margin: 0.3em 0 0.4em;
+      font-size: 0.58em;
+    }
+    .reveal .flow .step {
+      background: #21222c;
+      border: 1px solid #44475a;
+      border-radius: 8px;
+      padding: 0.55em;
+      min-height: 5.5em;
+    }
+    .reveal .flow .n { color: #ff79c6; font-family: ui-monospace, monospace; font-size: 0.85em; }
+    .reveal .fill > .seq {
+      min-height: 0;
+    }
+    .reveal .seq .box {
+      background: #21222c;
+      border: 1px solid #44475a;
+      border-radius: 8px;
+      padding: 0.38em 0.65em;
+      margin: 0.14em 0;
+      font-size: 0.62em;
+    }
+    .reveal .seq .box.para {
+      background: #282a36;
+      border-color: #50fa7b;
+    }
+    .reveal .seq .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.35em;
+      margin-top: 0.3em;
+    }
+    .reveal .seq .row .mini {
+      background: #21222c;
+      border: 1px solid #44475a;
+      border-radius: 8px;
+      padding: 0.3em 0.4em 0.35em;
+      text-align: center;
+    }
+    .reveal .seq .row .mini strong {
+      display: block;
+      color: #f1fa8c;
+      margin-bottom: 0.15em;
+      font-size: 0.95em;
+    }
+    .reveal .seq .row .mini .thumb {
+      width: 100%;
+      height: 2.35em;
+      max-height: 2.6em;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 0.15em;
+      background: #191a21;
+      border-radius: 6px;
+      border: 1px solid #44475a;
+    }
+    .reveal .seq .row .mini svg.thumb {
+      padding: 0.1em;
+    }
+    .reveal .seq .row .mini .muted {
+      font-size: 0.9em;
+    }
+    .reveal .label {
+      color: #8be9fd;
+      opacity: 0.75;
+      font-size: 0.72em;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .reveal .compare {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 0.55em;
+      align-items: stretch;
+      margin: 0.3em 0 0.4em;
+    }
+    /* Tall only when game diagrams live inside */
+    .reveal .compare .card { min-height: 8.5em; }
+    .reveal .compare .card:has(.game-diagram) { min-height: 13.5em; }
+    .reveal .vs {
+      align-self: center;
+      width: 2em; height: 2em;
+      border-radius: 50%;
+      background: #ff79c6;
+      color: #282a36;
+      display: grid;
+      place-items: center;
+      font-size: 0.55em;
+      font-weight: 800;
+    }
+    .reveal .game-diagram {
+      width: 100%;
+      max-height: 8.5em;
+      height: auto;
+      display: block;
+      margin: 0.25em 0 0.35em;
+      border-radius: 8px;
+      background: #191a21;
+      border: 1px solid #44475a;
+      object-fit: contain;
+    }
+    .reveal table.cost-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72em;
+      margin: 0.35em 0 0.4em;
+      background: #21222c;
+      border: 1px solid #44475a;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .reveal table.cost-table th,
+    .reveal table.cost-table td {
+      padding: 0.7em 0.75em;
+      text-align: left;
+      border-bottom: 1px solid #44475a;
+    }
+    .reveal table.cost-table th {
+      color: #ffb86c;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9em;
+      letter-spacing: 0.04em;
+      background: #282a36;
+    }
+    .reveal table.cost-table td { color: #f8f8f2; }
+    .reveal table.cost-table tr:last-child td { border-bottom: none; }
+    .reveal table.cost-table .model { color: #50fa7b; font-weight: 700; }
+    .reveal table.cost-table .muted-cell { color: #6272a4; }
+    @media (max-width: 900px) {
+      .reveal .fill .grid-2, .reveal .fill .grid-3, .reveal .fill .grid-4,
+      .reveal .flow, .reveal .compare, .reveal .seq .row, .reveal .strip {
+        grid-template-columns: 1fr;
+      }
+      .reveal .vs { display: none; }
+      .reveal .fill .card { min-height: 0; }
+      .reveal .compare .card:has(.game-diagram) { min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <section class="center-slide title-slide">
+        <h1>2D Games with AI Agents</h1>
+        <p class="byline">Tauhid Zaman</p>
+        <div class="title-hero" aria-label="Boxing rabbit punching a cute carrot enemy">
+          <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="fur" cx="40%" cy="35%" r="70%">
+                <stop offset="0%" stop-color="#f7f0e6"/><stop offset="55%" stop-color="#e8d5b8"/><stop offset="100%" stop-color="#c9a87c"/>
+              </radialGradient>
+              <radialGradient id="belly" cx="50%" cy="40%" r="60%">
+                <stop offset="0%" stop-color="#fff8ef"/><stop offset="100%" stop-color="#f0e2cc"/>
+              </radialGradient>
+              <linearGradient id="glove" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff5a5a"/><stop offset="50%" stop-color="#e12222"/><stop offset="100%" stop-color="#9b0f0f"/>
+              </linearGradient>
+              <linearGradient id="carrot" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#ffb86c"/><stop offset="100%" stop-color="#ff79c6"/>
+              </linearGradient>
+              <linearGradient id="innerEar" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffb7c5"/><stop offset="100%" stop-color="#f07a92"/>
+              </linearGradient>
+            </defs>
+            <g fill="#f1fa8c" opacity="0.95">
+              <polygon points="355,95 360,108 374,108 363,117 367,131 355,122 343,131 347,117 336,108 350,108"/>
+              <polygon points="390,140 393,148 402,148 395,154 398,163 390,157 382,163 385,154 378,148 387,148"/>
+            </g>
+            <text x="370" y="88" fill="#8be9fd" font-size="22" font-family="ui-monospace,monospace" font-weight="700">POW!</text>
+            <g transform="translate(40,20)">
+              <ellipse cx="120" cy="250" rx="26" ry="14" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5"/>
+              <ellipse cx="175" cy="252" rx="24" ry="13" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5"/>
+              <ellipse cx="150" cy="195" rx="55" ry="62" fill="url(#fur)" stroke="#8a6a45" stroke-width="3"/>
+              <ellipse cx="150" cy="205" rx="32" ry="40" fill="url(#belly)"/>
+              <ellipse cx="95" cy="185" rx="14" ry="26" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5" transform="rotate(-30 95 185)"/>
+              <g transform="translate(55,195) rotate(-25)">
+                <ellipse cx="20" cy="22" rx="24" ry="20" fill="url(#glove)" stroke="#6b0a0a" stroke-width="2"/>
+                <rect x="8" y="0" width="22" height="12" rx="5" fill="#f5f5f5" stroke="#888" stroke-width="1.5"/>
+              </g>
+              <ellipse cx="210" cy="170" rx="16" ry="28" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5" transform="rotate(55 210 170)"/>
+              <g transform="translate(230,145) rotate(8)">
+                <ellipse cx="34" cy="28" rx="34" ry="28" fill="url(#glove)" stroke="#6b0a0a" stroke-width="2.5"/>
+                <rect x="8" y="2" width="28" height="14" rx="6" fill="#f5f5f5" stroke="#888" stroke-width="2"/>
+                <ellipse cx="58" cy="22" rx="12" ry="10" fill="url(#glove)" stroke="#6b0a0a" stroke-width="2"/>
+              </g>
+              <g transform="rotate(-10 150 70)">
+                <ellipse cx="125" cy="55" rx="15" ry="42" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5"/>
+                <ellipse cx="125" cy="55" rx="7" ry="28" fill="url(#innerEar)"/>
+              </g>
+              <g transform="rotate(5 175 70)">
+                <ellipse cx="175" cy="50" rx="14" ry="40" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5"/>
+                <ellipse cx="175" cy="50" rx="6" ry="26" fill="url(#innerEar)"/>
+              </g>
+              <ellipse cx="150" cy="120" rx="48" ry="44" fill="url(#fur)" stroke="#8a6a45" stroke-width="3"/>
+              <ellipse cx="118" cy="128" rx="11" ry="8" fill="#f5a8a8" opacity="0.45"/>
+              <ellipse cx="178" cy="128" rx="11" ry="8" fill="#f5a8a8" opacity="0.45"/>
+              <ellipse cx="132" cy="115" rx="8" ry="10" fill="#1a1a1a"/>
+              <ellipse cx="168" cy="115" rx="8" ry="10" fill="#1a1a1a"/>
+              <circle cx="134" cy="111" r="2.6" fill="#fff"/>
+              <circle cx="170" cy="111" r="2.6" fill="#fff"/>
+              <ellipse cx="150" cy="132" rx="7" ry="5" fill="#3a2a1a"/>
+              <path d="M142 142 Q150 148 158 142" fill="none" stroke="#5a4030" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M118 98 Q130 92 142 98" fill="none" stroke="#6b4e2e" stroke-width="3" stroke-linecap="round"/>
+              <path d="M158 98 Q170 92 182 98" fill="none" stroke="#6b4e2e" stroke-width="3" stroke-linecap="round"/>
+            </g>
+            <g transform="translate(400,55) rotate(18)">
+              <ellipse cx="80" cy="130" rx="48" ry="78" fill="url(#carrot)" stroke="#c44d7a" stroke-width="3"/>
+              <ellipse cx="55" cy="45" rx="14" ry="28" fill="#50fa7b" stroke="#2d9e55" stroke-width="2" transform="rotate(-25 55 45)"/>
+              <ellipse cx="80" cy="35" rx="13" ry="30" fill="#8be9fd" stroke="#4aa8b8" stroke-width="2"/>
+              <ellipse cx="105" cy="45" rx="14" ry="28" fill="#50fa7b" stroke="#2d9e55" stroke-width="2" transform="rotate(25 105 45)"/>
+              <circle cx="62" cy="120" r="7" fill="#282a36"/>
+              <circle cx="98" cy="120" r="7" fill="#282a36"/>
+              <text x="56" y="125" fill="#f1fa8c" font-size="12" font-family="ui-monospace,monospace">×</text>
+              <text x="92" y="125" fill="#f1fa8c" font-size="12" font-family="ui-monospace,monospace">×</text>
+              <ellipse cx="80" cy="148" rx="12" ry="9" fill="#ff5555"/>
+              <path d="M68 148 Q80 158 92 148" fill="#ffb86c"/>
+              <ellipse cx="30" cy="125" rx="12" ry="8" fill="#ffb86c" stroke="#c44d7a" stroke-width="2" transform="rotate(-35 30 125)"/>
+              <ellipse cx="130" cy="125" rx="12" ry="8" fill="#ffb86c" stroke="#c44d7a" stroke-width="2" transform="rotate(35 130 125)"/>
+              <ellipse cx="135" cy="90" rx="4" ry="7" fill="#8be9fd" opacity="0.85"/>
+              <ellipse cx="145" cy="105" rx="3" ry="5" fill="#8be9fd" opacity="0.7"/>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Lecture outline</p>
+        <h2>What we will cover</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">FOUNDATIONS</p>
+            <ul>
+              <li>Elements of a video game</li>
+              <li>What makes a game <em>fun</em></li>
+              <li>Two classic 2D types (Zelda-like vs Mario-like)</li>
+              <li>Why design comes before art</li>
+            </ul>
+            <p class="block-foot">Shared language for the whole pipeline</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">AGENT STAGES</p>
+            <ul>
+              <li>Concept, story, and level beats</li>
+              <li>Mechanics, damage, HUD, SFX cues</li>
+              <li>Levels / maps → art list + BGM moods</li>
+              <li>Parallel art · Sound (blips) · Phaser · orchestrator</li>
+            </ul>
+            <p class="block-foot">Each stage: what it decides and what it outputs</p>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="card"><strong>1 · Concept</strong>story · beats · type</div>
+          <div class="card"><strong>2 · Mechanics</strong>verbs · HUD · SFX</div>
+          <div class="card"><strong>3 · Levels</strong>maps · BGM · art list</div>
+          <div class="card"><strong>4–6 · Make</strong>art · sound · Phaser</div>
+        </div>
+        <p class="note">Art and sound come late on purpose. Once maps and mechanics exist, you know every tile, attack frame, power-up icon, and blip you actually need.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Foundations</p>
+        <h2>Elements of a video game</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Fantasy</h3><p class="muted">Who are you and what world is this?</p><p class="block-foot">Identity + place</p></div>
+          <div class="card"><h3>Goals</h3><p class="muted">What does winning or progressing mean?</p><p class="block-foot">Direction</p></div>
+          <div class="card"><h3>Verbs</h3><p class="muted">What can the player <em>do</em>? Move, fight, talk, collect…</p><p class="block-foot">Agency</p></div>
+          <div class="card"><h3>Challenge</h3><p class="muted">Obstacles, enemies, puzzles, resources</p><p class="block-foot">Tension</p></div>
+          <div class="card"><h3>Feedback / juice</h3><p class="muted"><strong class="pink">Juice</strong> = extra feel on actions (flash, sound, knockback, POW!) — not the rule itself</p><p class="block-foot">Feel</p></div>
+          <div class="card"><h3>Progression</h3><p class="muted">Levels, items, story beats, power growth</p><p class="block-foot">Arc</p></div>
+        </div>
+        <div class="strip">
+          <div class="card"><strong>See goal</strong>collect carrots</div>
+          <div class="card"><strong>Do verb</strong>move · punch</div>
+          <div class="card"><strong>Hit challenge</strong>enemy · wall</div>
+          <div class="card"><strong>Get feedback</strong>score · POW · <em>blip</em></div>
+        </div>
+        <p class="note">That repeat cycle is the <strong>core loop</strong> — what the player does over and over. Graphics and sound dress it up; <span class="pink">the loop is the product.</span></p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Foundations</p>
+        <h2>What makes a game fun?</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">DESIGN CHECKLIST</p>
+            <ul>
+              <li><strong class="green">Clear goal</strong> — player knows what to try next</li>
+              <li><strong class="green">Readable verbs</strong> — controls feel obvious fast</li>
+              <li><strong class="green">Fair challenge</strong> — hard enough to care, not random</li>
+              <li><strong class="green">Fast feedback</strong> — every action gets a reaction</li>
+              <li><strong class="green">Mastery loop</strong> — slightly better each attempt</li>
+              <li><strong class="green">Fantasy fit</strong> — verbs match the character</li>
+            </ul>
+            <p class="block-foot">Use this before you ask an agent for art</p>
+          </div>
+          <div class="card soft">
+            <p class="quote">Fun = interesting decisions + satisfying feedback.</p>
+            <ul>
+              <li>Pretty art cannot rescue a boring loop</li>
+              <li>A sharp loop can survive rough art</li>
+              <li>Prototype the feeling, then decorate it</li>
+            </ul>
+            <p class="block-foot">Taste is the human job; agents run the pipeline</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>Goal</strong>why keep playing</div>
+          <div class="card"><strong>Verb</strong>what you press</div>
+          <div class="card"><strong>Payoff</strong>what you feel</div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Scope</p>
+        <h2>Two classic 2D types</h2>
+        <div class="compare">
+          <div class="card">
+            <p class="kicker">TOP-DOWN / OVERWORLD</p>
+            <h3>Zelda: A Link to the Past style</h3>
+            <svg class="game-diagram" viewBox="0 0 280 150" xmlns="http://www.w3.org/2000/svg" aria-label="Top-down room diagram with rabbit and snake">
+              <!-- room floor grid -->
+              <rect x="20" y="18" width="240" height="114" rx="6" fill="#21222c" stroke="#6272a4" stroke-width="2"/>
+              <g stroke="#44475a" stroke-width="1">
+                <line x1="80" y1="18" x2="80" y2="132"/><line x1="140" y1="18" x2="140" y2="132"/><line x1="200" y1="18" x2="200" y2="132"/>
+                <line x1="20" y1="56" x2="260" y2="56"/><line x1="20" y1="94" x2="260" y2="94"/>
+              </g>
+              <!-- walls / blocks -->
+              <rect x="26" y="24" width="48" height="26" rx="3" fill="#44475a"/>
+              <rect x="206" y="100" width="48" height="26" rx="3" fill="#44475a"/>
+              <!-- door -->
+              <rect x="128" y="14" width="24" height="10" rx="2" fill="#bd93f9"/>
+              <!-- coin -->
+              <circle cx="230" cy="40" r="8" fill="#f1fa8c" stroke="#ffb86c" stroke-width="1.5"/>
+              <!-- snake enemy (top-down facing) -->
+              <image href="lecture_snake_down.png" x="30" y="88" width="42" height="42" preserveAspectRatio="xMidYMid meet"/>
+              <!-- rabbit hero (front = down facing) -->
+              <image href="lecture_rabbit_front.png" x="118" y="52" width="44" height="44" preserveAspectRatio="xMidYMid meet"/>
+              <!-- 4-way arrows -->
+              <g fill="#50fa7b" font-size="14" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle">
+                <text x="140" y="48">▲</text><text x="140" y="112">▼</text>
+                <text x="104" y="76">◀</text><text x="176" y="76">▶</text>
+              </g>
+              <text x="140" y="145" fill="#6272a4" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle">rabbit · 4 facings · snake enemy</text>
+            </svg>
+            <ul>
+              <li>Move up / down / left / right</li>
+              <li>Explore rooms, talk, collect, fight</li>
+              <li>Later art: 4 facings + attack directions</li>
+            </ul>
+            <p class="block-foot">Great for adventure + collectibles</p>
+          </div>
+          <div class="vs">or</div>
+          <div class="card">
+            <p class="kicker">SIDE-SCROLLER</p>
+            <h3>Super Mario World style</h3>
+            <svg class="game-diagram" viewBox="0 0 280 150" xmlns="http://www.w3.org/2000/svg" aria-label="Side-scroller diagram with rabbit and snake">
+              <!-- sky -->
+              <rect x="20" y="18" width="240" height="114" rx="6" fill="#21222c" stroke="#6272a4" stroke-width="2"/>
+              <!-- clouds -->
+              <ellipse cx="70" cy="40" rx="18" ry="8" fill="#44475a"/><ellipse cx="86" cy="40" rx="12" ry="6" fill="#44475a"/>
+              <ellipse cx="190" cy="36" rx="16" ry="7" fill="#44475a"/>
+              <!-- ground -->
+              <rect x="20" y="110" width="100" height="22" fill="#50fa7b"/>
+              <rect x="160" y="110" width="100" height="22" fill="#50fa7b"/>
+              <!-- pit -->
+              <rect x="120" y="110" width="40" height="22" fill="#191a21"/>
+              <text x="140" y="124" fill="#ff5555" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle">pit</text>
+              <!-- platforms -->
+              <rect x="150" y="78" width="50" height="10" rx="2" fill="#ffb86c"/>
+              <rect x="210" y="58" width="40" height="10" rx="2" fill="#ffb86c"/>
+              <!-- flag / goal -->
+              <line x1="238" y1="58" x2="238" y2="110" stroke="#f8f8f2" stroke-width="2"/>
+              <polygon points="238,58 258,66 238,74" fill="#bd93f9"/>
+              <!-- snake enemy on ground (side view) -->
+              <image href="lecture_snake_left.png" x="175" y="78" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+              <!-- jump arc -->
+              <path d="M70 100 Q110 45 155 72" fill="none" stroke="#8be9fd" stroke-width="2" stroke-dasharray="4 3"/>
+              <!-- rabbit mid-jump (profile) -->
+              <image href="lecture_rabbit_right.png" x="88" y="30" width="48" height="48" preserveAspectRatio="xMidYMid meet"/>
+              <!-- left/right + jump hints -->
+              <g fill="#ff79c6" font-size="12" font-family="ui-monospace,monospace" font-weight="700">
+                <text x="30" y="100">◀ ▶</text>
+                <text x="95" y="28">jump</text>
+              </g>
+              <text x="140" y="145" fill="#6272a4" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle">rabbit run/jump · snake on the ground</text>
+            </svg>
+            <ul>
+              <li>Run left / right, jump</li>
+              <li>Platforms, pits, timed pressure</li>
+              <li>Later art: run / jump / fall / power-up</li>
+            </ul>
+            <p class="block-foot">Great for precision + momentum</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Pipeline</p>
+        <h2>Agent stages — in order</h2>
+        <div class="seq">
+          <div class="box"><span class="label">1</span><br /><strong class="pink">Concept Agent</strong> — story, characters, style, level <em>beats</em></div>
+          <div class="box"><span class="label">2</span><br /><strong class="orange">Mechanics Agent</strong> — verbs, damage, HUD, <strong>SFX cues</strong>, win/lose, juice</div>
+          <div class="box"><span class="label">3</span><br /><strong class="purple">Levels Agent</strong> — maps + spawns + <strong>BGM briefs</strong> → art shopping list</div>
+          <div class="box para">
+            <span class="label">4</span><br /><strong class="red">Art Agent</strong>
+            <div class="row">
+              <div class="mini">
+                <strong>Sprites</strong>
+                <img class="thumb" src="rabbit_spritesheet.png" alt="Rabbit sprite sheet example" />
+                <span class="muted">move · attack · hurt</span>
+              </div>
+              <div class="mini">
+                <strong>World art</strong>
+                <img class="thumb" src="tileset_sheet.png" alt="Tileset sheet example" />
+                <span class="muted">tiles · backgrounds</span>
+              </div>
+              <div class="mini">
+                <strong>Accessories</strong>
+                <img class="thumb" src="items_sheet.png" alt="Items sheet example" />
+                <span class="muted">items · FX · HUD</span>
+              </div>
+            </div>
+          </div>
+          <div class="box"><span class="label">5</span><br /><strong class="cyan" style="color:#8be9fd">Sound Agent</strong> — SFX + BGM recipes → WAV (blips / chiptune)</div>
+          <div class="box"><span class="label">6</span><br /><strong class="green">Assembler Agent</strong> — Phaser + wire-up (HUD + audio)</div>
+        </div>
+        <p class="note">Same six stages the orchestrator will run later — order is load-bearing.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 1 · Concept Agent</p>
+        <h2>Start here: concept & story</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">INPUTS</p>
+            <ul>
+              <li>One-line pitch</li>
+              <li>Characters (hero, enemies, NPCs)</li>
+              <li>Style (cute, dark, funny, heroic)</li>
+              <li>Core goal and fail state</li>
+              <li>2D type (Zelda-like / Mario-like)</li>
+              <li>Rough level journey</li>
+            </ul>
+            <p class="block-foot">Before rules, maps, or PNGs</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">OUTPUTS  · concept.json</p>
+            <ul>
+              <li><strong>GDD</strong> (Game Design Document — one-pager of the idea)</li>
+              <li>title, pitch, style</li>
+              <li>character list</li>
+              <li>win / lose conditions</li>
+              <li>story beats</li>
+              <li>reference games</li>
+            </ul>
+            <p class="block-foot">Feeds mechanics next</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>Who</strong>characters</div>
+          <div class="card"><strong>Where</strong>world + style</div>
+          <div class="card"><strong>Why</strong>goal + fail</div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 1 · Story</p>
+        <h2>Story elements you need</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Setup</h3><p class="muted">World + problem in one breath</p><p class="block-foot">Hook</p></div>
+          <div class="card"><h3>Want</h3><p class="muted">Hero wants something concrete</p><p class="block-foot">Drive</p></div>
+          <div class="card"><h3>Obstacle</h3><p class="muted">Who or what blocks them</p><p class="block-foot">Conflict</p></div>
+          <div class="card"><h3>Choice vibe</h3><p class="muted">Even a tiny fork helps</p><p class="block-foot">Agency</p></div>
+          <div class="card"><h3>Payoff</h3><p class="muted">Ending beat / clear condition</p><p class="block-foot">Close</p></div>
+          <div class="card"><h3>Style lock</h3><p class="muted">Guides later art + copy</p><p class="block-foot">Consistency</p></div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>Brief</strong>not a novel</div>
+          <div class="card"><strong>Concrete</strong>want · block · win</div>
+          <div class="card"><strong>Then</strong>mechanics can start</div>
+        </div>
+        <p class="note">Story is a design brief for later agents — not prose that never becomes play.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 1 · Tips</p>
+        <h2>Choosing a good concept</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">DO</p>
+            <ul>
+              <li>One hero + one prop</li>
+              <li>One verb beyond walking</li>
+              <li>One collectible or enemy type</li>
+              <li>Three micro-levels or rooms</li>
+              <li><strong>Re-skin</strong> a Zelda/Mario structure — keep the loop, change the look/characters</li>
+            </ul>
+            <p class="block-foot">Same bones, new skin (rabbit market ≠ invent a new genre)</p>
+          </div>
+          <div class="card">
+            <p class="kicker">DON’T</p>
+            <ul>
+              <li>MMO / crafting / skill trees</li>
+              <li>Realistic humans on day one</li>
+              <li>Everything including multiplayer</li>
+              <li>Story longer than the playable loop</li>
+              <li>Commission art before rules exist</li>
+            </ul>
+            <p class="block-foot">Scope kills more games than taste</p>
+          </div>
+        </div>
+        <div class="card soft" style="min-height:0; margin-top:0.15em">
+          <p class="quote" style="font-size:0.95em">Best pitch: noun + place + goal.</p>
+          <p style="margin-top:0.35em; font-size:0.88em; color:#f8f8f2">“Boxing rabbit · night market · collect 10 carrots before dawn.”</p>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 1 · Level thinking</p>
+        <h2>Levels as story pressure</h2>
+        <div class="grid-3">
+          <div class="card">
+            <p class="kicker">BEAT 1</p>
+            <h3>Teach</h3>
+            <ul>
+              <li>Safe space</li>
+              <li>Learn move + one verb</li>
+              <li>Low threat</li>
+            </ul>
+            <p class="block-foot">Tutorial without a tutorial screen</p>
+          </div>
+          <div class="card">
+            <p class="kicker">BEAT 2</p>
+            <h3>Twist</h3>
+            <ul>
+              <li>Add hazard or enemy</li>
+              <li>Same verbs, new pressure</li>
+              <li>One new rule only</li>
+            </ul>
+            <p class="block-foot">Depth from recombination</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">BEAT 3</p>
+            <h3>Payoff</h3>
+            <ul>
+              <li>Combine skills</li>
+              <li>Mini-boss or race to exit</li>
+              <li>Story beat lands</li>
+            </ul>
+            <p class="block-foot">Still design — not tile grids yet</p>
+          </div>
+        </div>
+        <p class="note">Beats describe the <strong>experience</strong>. Concrete maps come after mechanics.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 2 · Mechanics Agent</p>
+        <h2>Play mechanics = rules of fun</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">INPUTS</p>
+            <ul>
+              <li>Controls mapping</li>
+              <li>Movement speed / gravity</li>
+              <li>Collisions (walls, pits, water)</li>
+              <li>Combat or interact verb</li>
+              <li><strong>HP (hit points)</strong> = how much damage you can take, <strong>i-frames (invincibility frames)</strong>  = short “can’t be hurt again” window after a hit), knockback</li>
+              <li>Score, collectibles, inventory</li>
+              <li><strong>HUD (heads-up display)</strong>  = the always-on screen strip for HP, score, punch, level… so you can play without guessing</li>
+              <li><strong>SFX list</strong> — which events need a sound (jump, punch, hurt…)</li>
+              <li>Win condition and game-over</li>
+            </ul>
+            <p class="block-foot">This creates the art + sound wish-list</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">OUTPUT · mechanics.json</p>
+            <ul>
+              <li>verbs + key map</li>
+              <li>stats (hp, dmg, speed)</li>
+              <li><code>hud</code> — what to show + point values</li>
+              <li><code>sfx[]</code> — id, trigger, mood</li>
+              <li>entity behaviors</li>
+              <li>states: idle → move → attack → hurt → dead</li>
+            </ul>
+            <p class="block-foot">Each state may need a sprite later</p>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="card"><strong>HP</strong>health budget</div>
+          <div class="card"><strong>HUD</strong>on-screen stats bar</div>
+          <div class="card"><strong>i-frames</strong>brief can’t-be-hit window</div>
+          <div class="card"><strong>Knockback</strong>get shoved on hit</div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 2 · HUD</p>
+        <h2>HUD = what the player always sees</h2>
+        <p class="muted" style="font-size:0.68em; margin:0 0 0.2em"><strong>HUD</strong> = heads-up display — on-screen HP, score, punch, level. Missing HUD = the game feels unfinished.</p>
+        <div class="grid-2" style="margin:0.1em 0 0; align-items:start">
+          <div class="sheet hud-preview" style="min-height:0">
+            <img src="hud_example.png" alt="Example in-game HUD showing HP, score, punch, and level" />
+            <div class="cell-labels" style="grid-template-columns: 1fr">
+              <div>HP · Score · Punch · Level — fixed to camera</div>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:0.35em; min-height:0">
+            <div class="card" style="min-height:0; padding:0.4em 0.55em">
+              <p class="kicker">MECHANICS DECIDES</p>
+              <ul style="margin-top:0.15em">
+                <li>What to show: HP, score, punch…</li>
+                <li>Labels + point values in <code>mechanics.hud</code></li>
+              </ul>
+            </div>
+            <div class="card" style="min-height:0; padding:0.4em 0.55em">
+              <p class="kicker">ART (OPTIONAL)</p>
+              <ul style="margin-top:0.15em">
+                <li>Heart / coin / glove icons on UI sheet</li>
+              </ul>
+            </div>
+            <div class="card soft" style="min-height:0; padding:0.4em 0.55em">
+              <p class="kicker">ASSEMBLER WIRES IT</p>
+              <ul style="margin-top:0.15em">
+                <li>Live HP / score · fixed to camera</li>
+              </ul>
+              <p class="block-foot" style="padding-top:0.35em">Mechanics tracks · Assembler draws · Art icons only</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 2 · Juice</p>
+        <h2>Damage & juice</h2>
+        <p class="muted" style="font-size:0.72em; margin:0 0 0.35em">Reminder: <strong class="pink">juice</strong> = the satisfying feedback layered on a rule (the flash/POW), not “lose 1 HP” itself.</p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Readable hit</h3>
+            <ul>
+              <li>Flash on damage</li>
+              <li>Brief invulnerability</li>
+              <li>Small knockback</li>
+            </ul>
+            <p class="block-foot">Player saw it happen</p>
+          </div>
+          <div class="card">
+            <h3>Fair punish</h3>
+            <ul>
+              <li>Clear cause</li>
+              <li>Recoverable mistake</li>
+              <li>No mystery death</li>
+            </ul>
+            <p class="block-foot">Player understands the loss</p>
+          </div>
+          <div class="card soft">
+            <h3>Reward punch</h3>
+            <ul>
+              <li>Enemy flinch</li>
+              <li>Impact puff</li>
+              <li>Coin / score pop</li>
+            </ul>
+            <p class="block-foot">Adds FX to the shopping list</p>
+          </div>
+        </div>
+        <p class="note">Mechanics without juice feel broken. Juice without mechanics is just a trailer. Sound is juice for the ears — same list of events.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 2 · SFX cues</p>
+        <h2>Sound starts in Mechanics — as a shopping list</h2>
+        <p class="muted" style="font-size:0.7em; margin:0 0 0.3em"><strong>SFX</strong> = sound effects (short blips). Mechanics does <em>not</em> make WAV files — it names <strong>when</strong> and <strong>how</strong> they should feel.</p>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">REQUIRED CUE IDS (CLASS STANDARD)</p>
+            <ul>
+              <li><code>jump</code> · <code>punch</code> · <code>hurt</code></li>
+              <li><code>stomp</code> (enemy defeated)</li>
+              <li><code>pickup_heal</code> · <code>pickup_power</code></li>
+              <li><code>win</code> · <code>lose</code></li>
+            </ul>
+            <p class="block-foot">Stable ids the Sound Agent must hit</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">EACH SFX Cue = 3 FIELDS</p>
+            <ul>
+              <li><code>id</code> — filename later: <code>sfx_jump.wav</code></li>
+              <li><code>trigger</code> — when it fires (“player leaves ground”)</li>
+              <li><code>mood</code> — design note (“soft cotton hop”)</li>
+            </ul>
+            <p class="block-foot">Mood text steers the blip synthesizer</p>
+          </div>
+        </div>
+        <pre class="codeish" style="font-size:0.58em; margin:0.25em 0 0.35em">// mechanics.json → sfx[]
+{ "id": "punch", "trigger": "player attacks", "mood": "glove thwack", "category": "combat" }
+{ "id": "pickup_heal", "trigger": "collect carrot", "mood": "bright healthy chime", "category": "pickup" }</pre>
+        <p class="note">Same pattern as art: <strong class="pink">spec first</strong>, pixels (and samples) later.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 3 · Levels Agent</p>
+        <h2>From beats → maps</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">INPUTS</p>
+            <ul>
+              <li>Concept level beats</li>
+              <li>Mechanics rules</li>
+              <li>Entity list (enemies, items)</li>
+              <li>Win / exit conditions</li>
+            </ul>
+            <p class="block-foot">Still no final art required</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">OUTPUTS · levels.json</p>
+            <ul>
+              <li>One <code>levels.json</code> with <strong>all</strong> levels inside</li>
+              <li>Each level: layout, spawns, exits, checkpoints</li>
+              <li>Enemy and item placements</li>
+              <li><strong>Art shopping list</strong></li>
+              <li><strong>Background music briefs</strong> — one track per level</li>
+            </ul>
+            <p class="block-foot">Top-down: rooms · Side: platforms</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>Teach</strong>safe room</div>
+          <div class="card"><strong>Twist</strong>new pressure</div>
+          <div class="card"><strong>Payoff</strong>exit / boss</div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 3 · Background music</p>
+        <h2>Levels also design the soundtrack mood</h2>
+        <p class="muted" style="font-size:0.7em; margin:0 0 0.3em"><strong>BGM</strong> = background music — a looping layer for the whole level. Different from SFX (one-shots on actions).</p>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">PER LEVEL TRACK</p>
+            <ul>
+              <li><code>id</code> — e.g. <code>meadow_punch</code></li>
+              <li><code>level_id</code> — must match the map</li>
+              <li><code>mood</code> — “sunny meadow stroll”</li>
+              <li><code>tempo_bpm</code> — e.g. 118</li>
+              <li><code>levels[].music_id</code> points at that track</li>
+            </ul>
+            <p class="block-foot">Teach → twist in the music, too</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">WHY LEVELS, NOT MECHANICS?</p>
+            <ul>
+              <li>SFX = action verbs (mechanics owns the verbs)</li>
+              <li>BGM = place / pace (levels own the journey)</li>
+              <li>Level 2 can be darker, faster, braver</li>
+              <li>Sound Agent turns each brief into a short chiptune loop</li>
+            </ul>
+            <p class="block-foot">Two shopping lists: ears for events + ears for space</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>SFX</strong>jump · punch · coin</div>
+          <div class="card"><strong>BGM</strong>level loop</div>
+          <div class="card"><strong>Both</strong>text briefs first</div>
+        </div>
+        <p class="note">You do not need a composer for class games — you need <strong class="pink">clear mood strings</strong> the Sound Agent can follow.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 3 · Physics handoff</p>
+        <h2>Levels must obey mechanics (jump height)</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">THE TRAP</p>
+            <ul>
+              <li>Levels Agent draws platforms that <em>look</em> cool</li>
+              <li>It does <strong>not</strong> automatically know jump physics</li>
+              <li>Result: floating ledges the player can never reach</li>
+              <li>Pretty ASCII ≠ playable geometry</li>
+            </ul>
+            <p class="block-foot">Vibes placed the tiles — gravity didn’t approve</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">THE FIX · HARNESS</p>
+            <ul>
+              <li>From <code>mechanics.json</code>: jump speed + gravity → <strong>max_jump_tiles</strong></li>
+              <li>Tell Levels Agent: platforms ≤ that many tiles above the floor</li>
+              <li>Stair-step climbs (1–2 tiles), not sky islands</li>
+              <li>Post-check: lower / remove illegal <code>=</code> platforms</li>
+            </ul>
+            <p class="block-foot">Mechanics numbers gate the map</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>Mechanics</strong>jump + gravity</div>
+          <div class="card"><strong>Derive</strong>max_jump_tiles</div>
+          <div class="card"><strong>Levels</strong>place within reach</div>
+        </div>
+        <p class="note">Side-scrollers: if a ledge needs a 4-tile jump and Mario only has 2, the map is wrong — not the player.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 3 · Level design tips</p>
+        <h2>What to tell the Levels Agent (you don’t hand-draw maps)</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">SIZE · KEEP IT TINY</p>
+            <ul>
+              <li><strong>Zelda-like:</strong> 3–5 rooms per dungeon, ~10–16 tiles wide</li>
+              <li>Pattern: teach room → locked door → key → boss</li>
+              <li>Overworld: 1 small hub + 1–2 exits (house / cave)</li>
+              <li><strong>Mario-like:</strong> 1 short run, ~30–50 tiles wide</li>
+              <li>Teach jump → one enemy → one gap → exit flag</li>
+            </ul>
+            <p class="block-foot">Finishable maps beat “epic” empty maps</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">ASK THE AGENT TO SHOW THE LAYOUT</p>
+            <ul>
+              <li>Yes — it can preview the map <em>before</em> final art</li>
+              <li>Put an ASCII / tile-ID grid in <code>levels.json</code></li>
+              <li>Also export <code>layout_preview.html</code> or a PNG</li>
+              <li>Colored blocks = floor / wall / spawn / exit</li>
+              <li>You approve the shape, then Art Agent skins tiles</li>
+            </ul>
+            <p class="block-foot">Layout sketch ≠ pretty art — it’s a blueprint</p>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="card"><strong>Constraint</strong>max rooms / width</div>
+          <div class="card"><strong>Flow</strong>teach → twist → payoff</div>
+          <div class="card"><strong>Preview</strong>ASCII or HTML map</div>
+          <div class="card"><strong>Then</strong>shopping list → art</div>
+        </div>
+        <p class="note">Paste tip: “Keep maps tiny. Write levels.json + a simple layout_preview.html so I can see rooms before sprites.”</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Handoff → Art Agent</p>
+        <h2>The art shopping list</h2>
+        <p class="muted" style="font-size:0.7em; margin:0 0 0.3em">Concept + mechanics + levels are done. Now we know exactly what to draw.</p>
+        <div class="grid-3">
+          <div class="card">
+            <p class="kicker">CHARACTER SPRITES</p>
+            <ul>
+              <li>Idle / move facings</li>
+              <li>Attack / punch frames</li>
+              <li>Hurt / death</li>
+              <li>Only states mechanics use</li>
+            </ul>
+            <p class="block-foot">No unused animations</p>
+          </div>
+          <div class="card">
+            <p class="kicker">WORLD · TILES · BG</p>
+            <ul>
+              <li>Floor / wall / hazard</li>
+              <li>Door, water, crate…</li>
+              <li>Only IDs the map places</li>
+              <li>BG layers for mood</li>
+            </ul>
+            <p class="block-foot">No leftover biome kits</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">ITEMS · FX · UI</p>
+            <ul>
+              <li>Carrot / key / heart</li>
+              <li>Power-up icon</li>
+              <li>Impact puff</li>
+              <li><strong>HUD</strong>  on-screen HP, score, inventory</li>
+            </ul>
+            <p class="block-foot">Drawn because the level needs them</p>
+          </div>
+        </div>
+        <p class="note">Shopping list → Art Agent</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 4 · Art Agent</p>
+        <h2>What the Art Agent outputs</h2>
+        <div class="grid-3">
+          <div class="card">
+            <p class="kicker">CHARACTERS</p>
+            <ul>
+              <li><code>rabbit_spritesheet.png</code></li>
+              <li>Frame index map</li>
+              <li>Transparent cells</li>
+              <li>One sprite sheet per character</li>
+            </ul>
+            <p class="block-foot">Who moves / attacks</p>
+          </div>
+          <div class="card">
+            <p class="kicker">WORLD</p>
+            <ul>
+              <li><code>tileset_sheet.png</code> + <code>tileset.json</code></li>
+              <li><code>bg_sheet.png</code> (optional layers)</li>
+              <li>Solid vs decor flags</li>
+            </ul>
+            <p class="block-foot">Where you walk</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">STUFF</p>
+            <ul>
+              <li><code>items_sheet.png</code> + <code>items.json</code></li>
+              <li>Pickups, FX, HUD icons</li>
+              <li>Ids match mechanics + levels</li>
+            </ul>
+            <p class="block-foot">What you collect / see on-screen</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>Parallel</strong>three tracks at once</div>
+          <div class="card"><strong>Same style</strong>from concept</div>
+          <div class="card"><strong>Same list</strong>from levels</div>
+        </div>
+        <p class="note">Next: each output in detail — with example sheets.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 4 ·Art Agent · 1 · Characters</p>
+        <h2>Sprites & sprite sheets</h2>
+        <div class="compare">
+          <div class="card">
+            <h3>Sprite</h3>
+            <ul>
+              <li>One image of a game object</li>
+              <li>Usually transparent background</li>
+              <li>Engine draws one image for each character pose</li>
+            </ul>
+            <p class="block-foot">One sticker</p>
+          </div>
+          <div class="vs">vs</div>
+          <div class="card soft">
+            <h3>Sprite sheet</h3>
+            <ul>
+              <li>Many sprites in one file</li>
+              <li>Usually a grid of cells</li>
+              <li>Engine combines individual sprites into a single image</li>
+            </ul>
+            <p class="block-foot">Contact sheet of needed poses</p>
+          </div>
+        </div>
+        <div class="sheet">
+          <img src="rabbit_spritesheet.png" alt="Boxing rabbit sprite sheet" />
+          <div class="cell-labels"><div>DOWN</div><div>UP</div><div>LEFT</div><div>RIGHT</div></div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 4 ·Art Agent · 1 · Cheaper characters</p>
+        <h2>HTML/SVG vs image generation</h2>
+        <div class="grid-2">
+          <div class="card soft">
+            <p class="kicker">HTML / SVG PIPELINE · PREFER</p>
+            <ul>
+              <li>No AI image generation model (too expensive and slow)</li>
+              <li>Agent writes code for each character's base image</li>
+              <li>New pose by editing base image code, not redrawing</li>
+              <li>Screenshot  → sprite sheet</li>
+              <li>Cheap iterations: change glove color in one line</li>
+            </ul>
+            <p class="block-foot">Control · consistency · classroom-friendly</p>
+          </div>
+          <div class="card">
+            <p class="kicker">IMAGE GEN · USE SPARINGLY</p>
+            <ul>
+              <li>Great for mood boards / one-off heroes</li>
+              <li>Hard to keep 4 facings identical</li>
+              <li>Attack / hurt frames drift in style</li>
+              <li>Re-prompting burns time and money</li>
+              <li>Transparency and cell size are messy</li>
+            </ul>
+            <p class="block-foot">Expensive when you need a sprite sheet, not a single character pose</p>
+          </div>
+        </div>
+        <div class="flow">
+          <div class="step"><div class="n">01</div><strong>Brief</strong><br /><span class="muted">shopping list</span></div>
+          <div class="step"><div class="n">02</div><strong>Core HTML</strong><br /><span class="muted">master character</span></div>
+          <div class="step"><div class="n">03</div><strong>Poses</strong><br /><span class="muted">needed states</span></div>
+          <div class="step"><div class="n">04</div><strong>Capture</strong><br /><span class="muted">screenshot</span></div>
+          <div class="step"><div class="n">05</div><strong>Pack</strong><br /><span class="muted">sheet PNG</span></div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 4 ·Art Agent · 1 · Agent loop</p>
+        <h2>Make character sprites with agents</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">1 · LOCK BASE HTML (ONCE)</p>
+            <ul>
+              <li>Art Agent writes master <code>*_base.html</code> (SVG)</li>
+              <li>Screenshot → <strong>Critic</strong> checks detail / face / silhouette</li>
+              <li>Feedback → edit that HTML → screenshot again</li>
+              <li>When OK: <strong>lock the HTML file</strong> (source of truth)</li>
+            </ul>
+          </div>
+          <div class="card soft">
+            <p class="kicker">2 · POSES FROM LOCKED HTML (PARALLEL)</p>
+            <ul>
+              <li>Give each pose agent the <strong>locked base HTML</strong></li>
+              <li>Instruction: nudge limbs / facing — do <em>not</em> redraw a new character</li>
+              <li>idle / run / punch / hurt / jump… from mechanics poses</li>
+              <li>Each pose: edit HTML → screenshot → critic → fix</li>
+              <li>Run poses <strong>in parallel</strong>, then stitch PNGs → sheet</li>
+            </ul>
+            <p class="block-foot">One DNA file → many poses → one <code>*_sheet.png</code></p>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="card"><strong>Lock</strong>base HTML</div>
+          <div class="card"><strong>Pass HTML</strong>into pose agents</div>
+          <div class="card"><strong>Parallel</strong>pose edits</div>
+          <div class="card"><strong>Pack</strong>screenshots → sheet</div>
+        </div>
+        <p class="note">Consistency = shared HTML, not shared vibes. Screenshot is for the critic; the locked file is what poses edit.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 4 ·Art Agent · 2 · World</p>
+        <h2>Tileset sheet</h2>
+        <div class="sheet">
+          <img src="tileset_sheet.png" alt="Example tileset sheet" />
+          <div class="cell-labels" style="grid-template-columns: 1fr">
+            <div>floor · wall · crate · water · door · hazard · stall · roof</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Tileset</h3>
+            <ul>
+              <li>Repeating puzzle pieces for the map</li>
+              <li>Only IDs <code>levels.json</code> uses</li>
+              <li><code>tileset.json</code> marks solid vs walkable</li>
+            </ul>
+            <p class="block-foot">Playable geometry</p>
+          </div>
+          <div class="card soft">
+            <h3>Same pipeline</h3>
+            <ul>
+              <li>HTML/SVG tiles on a fixed stage</li>
+              <li>Capture → pack a sheet</li>
+              <li>Don’t invent unused biomes</li>
+            </ul>
+            <p class="block-foot">Paint the shopping list only</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 4 ·Art Agent · 2 · World</p>
+        <h2>Background layers</h2>
+        <div class="sheet">
+          <img src="bg_sheet.png" alt="Example background layers sheet" />
+          <div class="cell-labels cols-3" style="grid-template-columns: 1fr 1fr 1fr">
+            <div>FAR</div><div>MID</div><div>NEAR</div>
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="card"><h3>Far</h3><p class="muted">Sky / distant shapes. Moves little or not at all.</p><p class="block-foot">Mood</p></div>
+          <div class="card"><h3>Mid</h3><p class="muted">Stalls, hills, silhouettes. Optional parallax.</p><p class="block-foot">Depth</p></div>
+          <div class="card soft"><h3>Near decor</h3><p class="muted">Lanterns, props — usually <strong>no collision</strong>.</p><p class="block-foot">Flavor</p></div>
+        </div>
+        <p class="note">BG dresses the world. Tiles are what you bump into.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 4 ·Art Agent · 3 · Stuff</p>
+        <h2>Items, FX &amp; HUD sheet</h2>
+        <div class="sheet">
+          <img src="items_sheet.png" alt="Example items and HUD sheet" />
+          <div class="cell-labels" style="grid-template-columns: 1fr">
+            <div>carrot · heart · key · coin · puff · glove · potion · HUD</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">INCLUDES</p>
+            <ul>
+              <li>Pickups the map spawns</li>
+              <li>Power-ups mechanics define</li>
+              <li>Tiny FX from the juice list</li>
+              <li><strong>HUD</strong> — heads-up display (HP, score…)</li>
+            </ul>
+            <p class="block-foot">Drawn because something references it</p>
+          </div>
+          <div class="card soft">
+            <p class="quote">If it isn’t spawned or stated, don’t draw it.</p>
+            <ul>
+              <li>Output: <code>items_sheet.png</code> + <code>items.json</code></li>
+              <li>Ids must match mechanics + levels</li>
+            </ul>
+            <p class="block-foot">Small sheets, big clarity</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Parallelization</p>
+        <h2>Art runs on three levels of parallel</h2>
+        <p class="muted" style="font-size:0.68em; margin:0 0 0.25em">Don’t wait serially. Fan out agents (or chats) at each layer — same style guide for all.</p>
+        <div class="grid-3" style="margin:0.15em 0 0.3em">
+          <div class="card" style="min-height:0">
+            <p class="kicker">LEVEL 1 · ART TYPES</p>
+            <p style="margin:0.15em 0 0.25em; font-size:1.02em">Across <strong class="green">tracks</strong> at once:</p>
+            <ul>
+              <li><strong>Characters</strong> (sprites)</li>
+              <li><strong>World</strong> (tiles · BG)</li>
+              <li><strong>Stuff</strong> (items · FX · HUD)</li>
+            </ul>
+            <p class="block-foot">Don’t block tiles waiting on rabbit</p>
+          </div>
+          <div class="card" style="min-height:0">
+            <p class="kicker">LEVEL 2 · CHARACTERS</p>
+            <p style="margin:0.15em 0 0.25em; font-size:1.02em">Inside characters, split by <strong class="orange">actor</strong>:</p>
+            <ul>
+              <li>Rabbit sheet</li>
+              <li>Snake sheet</li>
+              <li>(any other NPC…)</li>
+            </ul>
+            <p class="block-foot">One base lock per character DNA</p>
+          </div>
+          <div class="card soft" style="min-height:0">
+            <p class="kicker">LEVEL 3 · POSES</p>
+            <p style="margin:0.15em 0 0.25em; font-size:1.02em">Inside one character, split by <strong class="pink">pose</strong>:</p>
+            <ul>
+              <li>Rabbit left · right</li>
+              <li>Rabbit attack / punch</li>
+              <li>Idle, run, jump, hurt…</li>
+            </ul>
+            <p class="block-foot">After base lock → poses in parallel</p>
+          </div>
+        </div>
+        <div class="strip cols-3" style="margin:0.1em 0 0.2em">
+          <div class="card" style="min-height:0; padding:0.35em">
+            <img src="rabbit_spritesheet.png" alt="Rabbit" style="width:100%; max-height:2.8em; object-fit:contain; display:block; background:#111; border-radius:4px" />
+            <img src="snake_spritesheet.png" alt="Snake" style="width:100%; max-height:2.8em; object-fit:contain; display:block; background:#111; border-radius:4px; margin-top:0.15em" />
+            <strong style="margin-top:0.2em">Chars</strong>L2 + L3
+          </div>
+          <div class="card" style="min-height:0; padding:0.35em">
+            <img src="tileset_sheet.png" alt="Tiles" style="width:100%; max-height:2.8em; object-fit:contain; display:block; background:#111; border-radius:4px" />
+            <img src="bg_sheet.png" alt="BG" style="width:100%; max-height:2.8em; object-fit:contain; display:block; background:#111; border-radius:4px; margin-top:0.15em" />
+            <strong style="margin-top:0.2em">World</strong>tiles ‖ BG
+          </div>
+          <div class="card" style="min-height:0; padding:0.35em">
+            <img src="items_sheet.png" alt="Items" style="width:100%; max-height:4.2em; object-fit:contain; display:block; background:#111; border-radius:4px" />
+            <strong style="margin-top:0.2em">Stuff</strong>icons in parallel
+          </div>
+        </div>
+        <p class="note"><strong class="pink">Level 1</strong> art types · <strong class="pink">Level 2</strong> rabbit vs snake · <strong class="pink">Level 3</strong> rabbit left / right / attack (after locked base).</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 5 · Sound Agent</p>
+        <h2>How to add sound — text first, then blips</h2>
+        <p class="muted" style="font-size:0.68em; margin:0 0 0.3em">Same shopping-list idea as art. Specs → synth → Phaser plays them.</p>
+        <div class="flow" style="grid-template-columns: repeat(4, 1fr); font-size:0.62em">
+          <div class="step">
+            <div class="n">01</div>
+            <strong style="color:#ffb86c">Mechanics</strong>
+            <p class="muted" style="margin:0.25em 0 0; font-size:0.95em"><code>sfx[]</code> — id, trigger, mood</p>
+          </div>
+          <div class="step">
+            <div class="n">02</div>
+            <strong style="color:#bd93f9">Levels</strong>
+            <p class="muted" style="margin:0.25em 0 0; font-size:0.95em"><code>background_music[]</code> per level</p>
+          </div>
+          <div class="step">
+            <div class="n">03</div>
+            <strong style="color:#8be9fd">Sound Agent</strong>
+            <p class="muted" style="margin:0.25em 0 0; font-size:0.95em">jsfxr-style recipes → WAV</p>
+          </div>
+          <div class="step">
+            <div class="n">04</div>
+            <strong style="color:#50fa7b">Assembler</strong>
+            <p class="muted" style="margin:0.25em 0 0; font-size:0.95em"><code>sound.play</code> on events</p>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:0.35em">
+          <div class="card">
+            <p class="kicker">WHY NOT “MAKE A SONG WITH AI” FIRST?</p>
+            <ul>
+              <li>GenAI music is slow, pricey, hard to critique</li>
+              <li>Class games need <em>readable</em> feedback more than a OST</li>
+              <li><strong>Blips library</strong> (jsfxr-style) synthesizes short WAV from params</li>
+              <li>Cute cartoon hops / punches / coins in milliseconds</li>
+            </ul>
+            <p class="block-foot">Procedural SFX ≈ HTML pipeline for ears</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">WHAT THE SOUND AGENT OUTPUTS</p>
+            <ul>
+              <li><code>data/sound.json</code> — BlipRecipe + MusicRecipe</li>
+              <li><code>assets/sfx_jump.wav</code>, <code>sfx_punch.wav</code>, …</li>
+              <li><code>assets/bgm_meadow_punch.wav</code> (loop)</li>
+              <li>Ids <strong>must</strong> match mechanics / levels</li>
+            </ul>
+            <p class="block-foot">Recipes first — then the synth writes WAV</p>
+          </div>
+        </div>
+        <p class="note">Tell agents: <strong class="pink">event → sound id</strong>. Don’t hand-pick thousands of free samples unless you want to.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 5 · Sound Agent · Recipes</p>
+        <h2>jsfxr-style params (the blip formula)</h2>
+        <p class="muted" style="font-size:0.62em; margin:0 0 0.25em">
+          <strong>jsfxr</strong> (from classic <strong>sfxr</strong>): knobs for wave / pitch / length → short <code>.wav</code> blips — not a recording studio.
+          The agent fills knobs; code synthesizes the sample.
+        </p>
+        <div class="grid-2" style="margin:0.2em 0 0.3em">
+          <div class="card" style="min-height:0">
+            <p class="kicker">WHAT IT IS (IN ONE BREATH)</p>
+            <ul>
+              <li>Procedural SFX: math → beep, not “generate a song with AI”</li>
+              <li>Built for jump / coin / hit / laser / explode vibes</li>
+              <li>Output is a few hundred milliseconds of audio</li>
+              <li>Cheap, remix-safe, easy for an agent to specify as text/numbers</li>
+            </ul>
+            <p class="block-foot">Like an art shopping list — but for ears</p>
+          </div>
+          <div class="card soft" style="min-height:0">
+            <p class="kicker">WHY WE USE “JSFXR-STYLE”</p>
+            <ul>
+              <li>The agent writes <strong>params</strong> (wave, freq, decay…)</li>
+              <li>Code synthesizes <code>sfx_jump.wav</code>, etc.</li>
+              <li>No stock library download; no big generative-audio bill</li>
+              <li>Mood text (“soft cotton hop”) nudges the knobs</li>
+            </ul>
+            <p class="block-foot">Readable cartoon blips for student games</p>
+          </div>
+        </div>
+        <div class="grid-2" style="margin:0.1em 0 0.25em">
+          <div class="card" style="min-height:0">
+            <p class="kicker">SFX · BlipRecipe</p>
+            <ul>
+              <li><code>wave</code> square / saw / sine / noise</li>
+              <li><code>start_freq_hz</code> → <code>end_freq_hz</code></li>
+              <li><code>duration_ms</code> (~80–350) · attack / decay</li>
+            </ul>
+          </div>
+          <div class="card soft" style="min-height:0">
+            <p class="kicker">BGM · MusicRecipe (SAME IDEA, LONGER)</p>
+            <ul>
+              <li>Short chiptune loop from scale + tempo</li>
+              <li>Levels write the mood; Sound builds the loop</li>
+            </ul>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="card"><strong>jump</strong>pitch up blip</div>
+          <div class="card"><strong>punch</strong>noise thwack</div>
+          <div class="card"><strong>heal</strong>bright chime</div>
+          <div class="card"><strong>lose</strong>sad fall</div>
+        </div>
+        <p class="note"><strong class="pink">jsfxr</strong> = knobs → blip. Agents fill the knobs; Phaser just plays the WAV.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 5 · Assembler + audio</p>
+        <h2>Wire sound the same way you wire damage</h2>
+        <p class="muted" style="font-size:0.68em; margin:0 0 0.25em">Phaser only plays files you put in memory first. Then you call play on the same moments you update score / HP / juice.</p>
+        <div class="grid-2">
+          <div class="card" style="min-height:0">
+            <p class="kicker">PHASER · THREE JOBS (IN ORDER)</p>
+            <ul>
+              <li><strong>1 · Preload</strong> — download every WAV once at boot<br />
+                <span class="muted" style="font-size:0.9em">e.g. key <code>sfx_jump</code> ← file <code>assets/sfx_jump.wav</code></span></li>
+              <li><strong>2 · Create / level start</strong> — start the looping BGM for this map<br />
+                <span class="muted" style="font-size:0.9em">Look up <code>level.music_id</code> → play <code>bgm_…</code> with <code>loop: true</code></span></li>
+              <li><strong>3 · Gameplay events</strong> — one short SFX when something happens<br />
+                <span class="muted" style="font-size:0.9em">Jump key → <code>playSfx("jump")</code> · punch → <code>"punch"</code> · same id as <code>mechanics.sfx</code></span></li>
+            </ul>
+            <p class="block-foot">JSON id = Phaser audio key = filename stem</p>
+          </div>
+          <div class="card soft" style="min-height:0">
+            <p class="kicker">WHEN TO CALL EACH SFX</p>
+            <ul>
+              <li><code>jump</code> — player leaves the ground</li>
+              <li><code>punch</code> — attack button</li>
+              <li><code>hurt</code> — player takes damage</li>
+              <li><code>stomp</code> — enemy defeated</li>
+              <li><code>pickup_heal</code> / <code>pickup_power</code> — items</li>
+              <li><code>win</code> / <code>lose</code> — end of run</li>
+            </ul>
+            <p class="block-foot">Same hooks as score / juice</p>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:0.2em">
+          <div class="card" style="min-height:0; padding:0.45em 0.55em">
+            <p class="kicker">BROWSER GOTCHA</p>
+            <ul style="margin-top:0.15em">
+              <li>No sound until first click / key (autoplay rules)</li>
+              <li>Use <code>http://</code> server, not <code>file://</code></li>
+            </ul>
+          </div>
+          <div class="card soft" style="min-height:0; padding:0.45em 0.55em">
+            <p class="kicker">MINI FLOW</p>
+            <p style="margin:0.2em 0; font-size:0.95em"><strong class="orange">Mechanics</strong> lists cue ids → <strong class="purple">Sound</strong> writes WAVs → <strong class="green">Assembler</strong> preload + play on events</p>
+          </div>
+        </div>
+        <p class="note">Think: <strong class="pink">preload</strong> = put records on the shelf · <strong class="pink">create</strong> = start the radio loop · <strong class="pink">events</strong> = hit play on each blip.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 6 · Assembler</p>
+        <h2>Agents made the pieces — what’s still missing?</h2>
+        <p class="muted" style="font-size:0.7em; margin:0 0 0.3em">You have concept, mechanics, levels, art sheets, and WAVs. That is still <em>not</em> a game until something runs the loop.</p>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">YOU ALREADY HAVE (FROM AGENTS)</p>
+            <ul>
+              <li>Story, characters, style, win/lose</li>
+              <li>Rules: move, hit, HP, collect + <code>sfx[]</code></li>
+              <li>Maps + BGM briefs + shopping list</li>
+              <li>PNG sheets + <code>sfx_*.wav</code> / <code>bgm_*.wav</code></li>
+            </ul>
+            <p class="block-foot">Ingredients on the counter</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">STILL NEED (TO PLAY)</p>
+            <ul>
+              <li>A place that runs 60 times/sec (game loop)</li>
+              <li>Load sheets + JSON + audio into memory</li>
+              <li>Read keyboard / touch input</li>
+              <li>Move the camera, draw tiles + sprites</li>
+              <li>Collisions, damage, win/lose checks</li>
+              <li><strong>HUD</strong> + <strong>sound.play</strong> on the same events</li>
+            </ul>
+            <p class="block-foot">That’s the Assembler’s job in a framework</p>
+          </div>
+        </div>
+        <p class="note">Folders of PNGs (and WAVs) don’t play. Something has to <strong>run the loop</strong> and connect inputs → rules → pictures → <strong class="pink">sounds</strong>.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 6 · Framework</p>
+        <h2>What is a game framework?</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">IN PLAIN ENGLISH</p>
+            <ul>
+              <li>A starter kit for games (not a blank webpage)</li>
+              <li>Already knows: images, keyboards, timers, <strong>audio</strong></li>
+              <li>Helpers for overlap, gravity, cameras</li>
+              <li>You plug in <em>your</em> sheets + <em>your</em> rules</li>
+            </ul>
+            <p class="block-foot">Oven + recipe stand — you bring the ingredients</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">THIS CLASS = ONE FRAMEWORK</p>
+            <ul>
+              <li>We standardize on <strong class="green">Phaser</strong></li>
+              <li>JavaScript, runs in the browser</li>
+              <li>Works for Zelda-like and Mario-like</li>
+              <li>Easy to vibe-code  and share a link</li>
+            </ul>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="card"><strong>Input</strong>keys / taps</div>
+          <div class="card"><strong>Update</strong>rules each frame</div>
+          <div class="card"><strong>Draw</strong>tiles + sprites</div>
+          <div class="card"><strong>Repeat</strong>~60× / sec</div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 6 · Phaser</p>
+        <h2>Phaser — our class game engine</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">WHAT IT GIVES YOU</p>
+            <ul>
+              <li>Game loop (update + draw every frame)</li>
+              <li>Load PNG sheets + slice frames</li>
+              <li>Load WAV / audio buffers</li>
+              <li>Keyboard / gamepad input</li>
+              <li>Tilemaps, cameras, arcade physics</li>
+              <li>Top-down <em>or</em> side-scroller support</li>
+            </ul>
+            <p class="block-foot">phaser.io · free · browser-first</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">WHAT YOU STILL BRING</p>
+            <ul>
+              <li><code>concept.json</code> / <code>mechanics.json</code></li>
+              <li><code>levels.json</code> + <code>sound.json</code></li>
+              <li>Character / tile / item sheets</li>
+              <li><code>sfx_*.wav</code> + <code>bgm_*.wav</code></li>
+              <li>Assembler wires those into Phaser scenes</li>
+            </ul>
+            <p class="block-foot">Phaser ≠ art or audio. Phaser runs them.</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>Zelda-like</strong>4-way move + tilemap</div>
+          <div class="card"><strong>Mario-like</strong>gravity + jump</div>
+          <div class="card"><strong>Share</strong>open index.html</div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 6 · Setup</p>
+        <h2>How we “install” Phaser (ask the vibe coder)</h2>
+        <div class="grid-2">
+          <div class="card">
+            <p class="kicker">CDN = CONTENT DELIVERY NETWORK</p>
+            <ul>
+              <li><strong>CDN</strong> =  servers on the internet that serve files (JS, CSS, images) from a public URL</li>
+              <li>Your HTML says: “load Phaser from this link”</li>
+              <li>No npm, no install step — browser fetches the library</li>
+              <li>One folder: <code>index.html</code> + <code>js/</code> + <code>data/</code> + <code>assets/</code></li>
+              <li>Still open via Live Server / static server (not <code>file://</code>)</li>
+            </ul>
+            <p class="block-foot">Like linking a YouTube video — you don’t download the player</p>
+          </div>
+          <div class="card soft">
+            <p class="kicker">PASTE THIS TO YOUR AGENT</p>
+            <pre class="codeish" style="font-size:0.58em; margin-top:0.35em">Create a Phaser 3 game in this folder using the CDN
+build (no npm). Match this layout:
+
+index.html          ← load Phaser CDN
+js/main.js, Player.js, LevelScene.js
+data/concept.json, mechanics.json, levels.json
+  (+ sound.json if you have SFX cues)
+assets/             ← PNG sheets + sfx_*.wav + bgm_*.wav
+
+Add index.html that loads:
+https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js
+
+Read data/mechanics.json + data/levels.json,
+implement move / collide / collect / HUD / audio.
+Serve with a local static server (not file://).
+Do not use React.</pre>
+            <p class="block-foot">Agent scaffolds; you press play</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>CDN</strong>Content Delivery Network</div>
+          <div class="card"><strong>Not today</strong>npm / React / Godot</div>
+          <div class="card"><strong>Must</strong>http server for assets</div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Stage 6 · Assembler Agent</p>
+        <h2>What a Phaser game folder looks like</h2>
+        <div class="grid-2">
+          <div class="card soft">
+            <p class="kicker">EXAMPLE FILE TREE</p>
+            <pre class="codeish" style="font-size:0.52em; margin:0.25em 0 0; flex:1">my-game/
+├── index.html              ← Phaser CDN + JS
+├── js/
+│   ├── main.js             ← preload sheets + audio
+│   ├── Player.js           ← jump → playSfx("jump")
+│   └── LevelScene.js       ← collide, HUD, BGM
+├── data/
+│   ├── concept.json
+│   ├── mechanics.json      ← sfx[] cues
+│   ├── levels.json         ← background_music[]
+│   └── sound.json          ← blip recipes
+└── assets/
+    ├── rabbit_sheet.png
+    ├── tileset_sheet.png
+    ├── items_sheet.png
+    ├── sfx_jump.wav        ← Sound Agent
+    ├── sfx_punch.wav
+    └── bgm_meadow.wav      ← looping BGM</pre>
+            <p class="block-foot">Phaser + JSON + PNG + WAV</p>
+          </div>
+          <div class="card">
+            <p class="kicker">HOW TO START (YES — A TINY SERVER)</p>
+            <ul>
+              <li>Don’t double-click <code>index.html</code> (<code>file://</code> breaks assets + audio)</li>
+              <li>In the project folder, run a local static server:</li>
+            </ul>
+            <pre class="codeish" style="font-size:0.62em; margin:0.35em 0">cd my-game
+npx --yes serve .
+
+# or:  python -m http.server 8000</pre>
+            <ul>
+              <li>Open the URL it prints (e.g. <code>http://localhost:3000</code>)</li>
+              <li>Click once so the browser unlocks sound</li>
+            </ul>
+            <p class="block-foot">Terminal starts a server; browser plays the game</p>
+          </div>
+        </div>
+        <div class="strip cols-3">
+          <div class="card"><strong>Wrong</strong>file:// double-click</div>
+          <div class="card"><strong>Right</strong>npx serve / Live Server</div>
+          <div class="card"><strong>Then</strong>click → hear BGM</div>
+        </div>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Orchestrator Agent</p>
+        <h2>Runs this flow — manages each sub-agent’s I/O</h2>
+        <div class="seq">
+          <div class="box"><span class="label">1</span><br /><strong class="pink">Concept Agent</strong> — story, characters, style → <code>concept.json</code></div>
+          <div class="box"><span class="label">2</span><br /><strong class="orange">Mechanics Agent</strong> — verbs, HUD, <code>sfx[]</code> → <code>mechanics.json</code></div>
+          <div class="box"><span class="label">3</span><br /><strong class="purple">Levels Agent</strong> — maps + <code>background_music[]</code> → <code>levels.json</code></div>
+          <div class="box para">
+            <span class="label">4</span><br /><strong class="red">Art Agent</strong> <span class="muted">(parallel from shopping list)</span>
+            <div class="row">
+              <div class="mini">
+                <strong>Sprites</strong>
+                <img class="thumb" src="rabbit_spritesheet.png" alt="Rabbit sprite sheet example" />
+                <span class="muted">move · attack · hurt</span>
+              </div>
+              <div class="mini">
+                <strong>World art</strong>
+                <img class="thumb" src="tileset_sheet.png" alt="Tileset sheet example" />
+                <span class="muted">tiles · backgrounds</span>
+              </div>
+              <div class="mini">
+                <strong>Accessories</strong>
+                <img class="thumb" src="items_sheet.png" alt="Items sheet example" />
+                <span class="muted">items · FX · HUD</span>
+              </div>
+            </div>
+          </div>
+          <div class="box"><span class="label">5</span><br /><strong style="color:#8be9fd">Sound Agent</strong> — recipes → <code>sfx_*.wav</code> + <code>bgm_*.wav</code></div>
+          <div class="box"><span class="label">6</span><br /><strong class="green">Assembler Agent</strong> — Phaser + HUD + audio → playable game</div>
+        </div>
+        <p class="note">One manager agent: specialists in order, parallelizes art, synthesizes sound, then Assembler builds Phaser.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Recap</p>
+        <h2>The whole pipeline</h2>
+        <div class="grid-3">
+          <div class="card">
+            <h3>1. Design</h3>
+            <ul>
+              <li>Concept + story</li>
+              <li>Mechanics + juice + <strong>SFX cues</strong></li>
+              <li>Levels + shops + <strong>BGM moods</strong></li>
+              <li><code>levels.json</code> + shopping lists</li>
+            </ul>
+            <p class="block-foot">Know the game before pictures</p>
+          </div>
+          <div class="card">
+            <h3>2. Make assets</h3>
+            <ul>
+              <li>Art: sheets (parallel)</li>
+              <li>Sound: blips + loops</li>
+              <li>Ids match mechanics</li>
+              <li>Prefer procedural kits</li>
+            </ul>
+            <p class="block-foot">Eyes + ears from specs</p>
+          </div>
+          <div class="card soft">
+            <h3>3. Assemble (Phaser)</h3>
+            <ul>
+              <li>CDN Phaser project</li>
+              <li>Wire JSON + sheets + WAV</li>
+              <li>Input → update → draw → play</li>
+              <li>HUD + sound on events</li>
+            </ul>
+            <p class="block-foot">Orchestrator runs 1 → 2 → 3</p>
+          </div>
+        </div>
+        <p class="quote" style="margin-top:0.2em; font-size:1em">Know the punch before you draw the glove — and before you synthesize the thwack.</p>
+      </section>
+
+      <section class="fill">
+        <p class="eyebrow">Cost · Quality · Speed</p>
+        <h2>Same rabbit game, three models</h2>
+        <p class="muted" style="font-size:0.68em; margin:0.1em 0 0.35em">
+          Full pipeline (concept → mechanics → levels → art → SFX/BGM → Phaser). Wall times from our measured runs.
+        </p>
+        <table class="cost-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Approx. cost</th>
+              <th>Wall time</th>
+              <th>What we noticed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="model">gpt-5.6-luna</td>
+              <td>~$0.15</td>
+              <td>3m 9s</td>
+              <td class="muted-cell">Fast + cheap · sprites noticeably uglier</td>
+            </tr>
+            <tr>
+              <td class="model">gpt-5.6-terra</td>
+              <td>~$1.50</td>
+              <td>4m 31s</td>
+              <td class="muted-cell">Similar quality to sol on sprites + levels</td>
+            </tr>
+            <tr>
+              <td class="model">gpt-5.6-sol</td>
+              <td>~$5.50</td>
+              <td>~8–9 min</td>
+              <td class="muted-cell">≈ terra quality · much slower + costlier</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="strip cols-3">
+          <div class="card"><strong>Luna</strong>3m 9s · cheapest</div>
+          <div class="card"><strong>Terra</strong>4m 31s · best $/quality</div>
+          <div class="card"><strong>Sol</strong>~8–9m · ~5× cost</div>
+        </div>
+        <p class="note">Terra ≈ sol look; sol took about 2× terra wall time here. Luna is fine to draft — expect rough sprites. Sol wall is approximate (run finished sound/assembler after an art-console glitch).</p>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: "c/t",
+      showNotes: false,
+      transition: "fade",
+      backgroundTransition: "fade",
+      width: 1280,
+      height: 720,
+      margin: 0.08,
+      center: false,
+      controls: true,
+      progress: true,
+    });
+  </script>
+</body>
+</html>

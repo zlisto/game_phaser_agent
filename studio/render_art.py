@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -50,33 +51,21 @@ def _draw_tile(draw: ImageDraw.ImageDraw, tile_id: str, pal: ArtBundle, size: in
         draw.rectangle([0, 0, size, size], fill=_hex("#8d6e63"), outline=dark)
 
 
-def render_world_art(out_assets: Path, art: ArtBundle, concept: ConceptDoc) -> list[str]:
-    """Write item/tile/bg sheets. Returns filenames."""
-    out_assets.mkdir(parents=True, exist_ok=True)
-    written: list[str] = []
-    cell = 64
+def _render_item_cell(item_id: str, art: ArtBundle, cell: int = 64) -> Image.Image:
+    cell_img = _blank(cell, cell)
+    d = ImageDraw.Draw(cell_img)
+    _draw_item(d, item_id, art)
+    return cell_img
 
-    items = art.item_ids[:6] or ["carrot", "easter_egg", "heart"]
-    img = _blank(cell * len(items), cell)
-    for i, item_id in enumerate(items):
-        cell_img = _blank(cell, cell)
-        d = ImageDraw.Draw(cell_img)
-        _draw_item(d, item_id, art)
-        img.paste(cell_img, (i * cell, 0), cell_img)
-    img.save(out_assets / "items_sheet.png")
-    written.append("items_sheet.png")
 
-    tiles = art.tile_ids[:4] or ["grass", "dirt", "platform"]
-    tsize = 32
-    img = _blank(tsize * len(tiles), tsize)
-    for i, tid in enumerate(tiles):
-        cell_img = _blank(tsize, tsize)
-        d = ImageDraw.Draw(cell_img)
-        _draw_tile(d, tid, art, tsize)
-        img.paste(cell_img, (i * tsize, 0), cell_img)
-    img.save(out_assets / "tileset_sheet.png")
-    written.append("tileset_sheet.png")
+def _render_tile_cell(tile_id: str, art: ArtBundle, size: int = 32) -> Image.Image:
+    cell_img = _blank(size, size)
+    d = ImageDraw.Draw(cell_img)
+    _draw_tile(d, tile_id, art, size)
+    return cell_img
 
+
+def _render_bg(art: ArtBundle) -> Image.Image:
     bg = Image.new("RGBA", (320, 180), (0, 0, 0, 0))
     bd = ImageDraw.Draw(bg)
     top = _hex(art.palette.light)
@@ -87,6 +76,44 @@ def render_world_art(out_assets: Path, art: ArtBundle, concept: ConceptDoc) -> l
         bd.line([(0, y), (319, y)], fill=col)
     bd.ellipse([-40, 110, 160, 220], fill=_hex(art.palette.secondary))
     bd.ellipse([120, 120, 360, 230], fill=_hex(art.palette.primary))
+    return bg
+
+
+def render_world_art(out_assets: Path, art: ArtBundle, concept: ConceptDoc) -> list[str]:
+    """Sync wrapper — same files as the parallel path."""
+    return asyncio.run(render_world_art_parallel(out_assets, art, concept))
+
+
+async def render_world_art_parallel(
+    out_assets: Path, art: ArtBundle, concept: ConceptDoc
+) -> list[str]:
+    """Draw item/tile cells in parallel threads, then assemble sheets."""
+    out_assets.mkdir(parents=True, exist_ok=True)
+    written: list[str] = []
+    cell = 64
+
+    items = art.item_ids[:6] or ["carrot", "easter_egg", "heart"]
+    item_cells = await asyncio.gather(
+        *[asyncio.to_thread(_render_item_cell, iid, art, cell) for iid in items]
+    )
+    img = _blank(cell * len(items), cell)
+    for i, cell_img in enumerate(item_cells):
+        img.paste(cell_img, (i * cell, 0), cell_img)
+    img.save(out_assets / "items_sheet.png")
+    written.append("items_sheet.png")
+
+    tiles = art.tile_ids[:4] or ["grass", "dirt", "platform"]
+    tsize = 32
+    tile_cells = await asyncio.gather(
+        *[asyncio.to_thread(_render_tile_cell, tid, art, tsize) for tid in tiles]
+    )
+    img = _blank(tsize * len(tiles), tsize)
+    for i, cell_img in enumerate(tile_cells):
+        img.paste(cell_img, (i * tsize, 0), cell_img)
+    img.save(out_assets / "tileset_sheet.png")
+    written.append("tileset_sheet.png")
+
+    bg = await asyncio.to_thread(_render_bg, art)
     bg.save(out_assets / "bg_sheet.png")
     written.append("bg_sheet.png")
 
@@ -96,6 +123,7 @@ def render_world_art(out_assets: Path, art: ArtBundle, concept: ConceptDoc) -> l
         encoding="utf-8",
     )
     written.append("ART_NOTES.txt")
+    print(f"      world art parallel -> items={len(items)} tiles={len(tiles)} + bg")
     return written
 
 

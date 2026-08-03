@@ -18,6 +18,7 @@ from .models import (
     LevelsDoc,
     MechanicsDoc,
     PoseNeed,
+    SoundBundle,
     SpriteSpec,
     StudioBrief,
 )
@@ -35,6 +36,7 @@ art_agent: Agent
 html_sprite_agent: Agent
 html_pose_agent: Agent
 critic_agent: Agent
+sound_agent: Agent
 assembler_agent: Agent
 
 
@@ -50,7 +52,7 @@ def configure_model(model: str | None = None, *, quiet: bool = False) -> str:
     """Rebuild all specialist agents for the given model. Returns the model id used."""
     global MODEL
     global concept_agent, mechanics_agent, levels_agent, art_agent
-    global html_sprite_agent, html_pose_agent, critic_agent, assembler_agent
+    global html_sprite_agent, html_pose_agent, critic_agent, sound_agent, assembler_agent
 
     MODEL = normalize_model_id(model or DEFAULT_MODEL)
     if not quiet:
@@ -74,12 +76,19 @@ def configure_model(model: str | None = None, *, quiet: bool = False) -> str:
     mechanics_agent = _agent(
         MechanicsDoc,
         "You are the Mechanics Agent. Turn the concept into concrete verbs, stats, damage, items, "
-        "controls, and a complete sprite_poses list for every character animation the game needs. "
-        "sprite_poses MUST include clear facing (left/right for side_scroller; up/down/left/right for top_down) "
-        "and actions: idle, run/walk, jump (side_scroller), punch/attack, hurt/get-hit. "
+        "controls, HUD, SFX cues, and a complete sprite_poses list for every character animation. "
+        "ALWAYS fill hud: show_hp=true, show_score=true (unless story forbids), show_punch when attacks upgrade, "
+        "labels for hp/score/punch/level, and score_per_enemy / score_per_item. "
+        "If brief wants carrot icons for HP / compact image HUD, set labels.hp to Carrots and juice_notes accordingly. "
+        "If brief: walk-into-enemy kills instantly — write lose_condition that way (stomp or punch only kill snakes). "
+        "If brief includes wall-jump, note it in juice_notes. "
+        "ALWAYS fill sfx[] — sound effect shopping list for the Sound Agent. Each SfxCue needs: "
+        "id, trigger (when it plays), mood (short design note), category. "
+        "Required ids (use these exact ids): jump, punch, hurt, stomp, pickup_heal, pickup_power, win, lose. "
+        "Add extra ids only if the game clearly needs them. "
+        "sprite_poses MUST include clear facing and actions idle/run/jump/punch/hurt as relevant. "
         "For the hero include at least: idle_right, idle_left, run_right, punch_right, punch_left, hurt_right, jump_right. "
         "For each enemy include idle + move + hurt, with left and right facings where relevant. "
-        "Each PoseNeed needs id, character_id (player or enemy id), action, facing, purpose. "
         "Keep numbers small and playable.",
     )
     levels_agent = _agent(
@@ -94,7 +103,9 @@ def configure_model(model: str | None = None, *, quiet: bool = False) -> str:
         "No floating islands the player cannot reach with a single jump. "
         "Top down: 3-5 room-like chambers with # walls, corridors, 10-16 tiles wide. "
         "Exactly the requested number of levels if specified, else 2. "
-        "Also fill art_shopping_list and short layout_notes. "
+        "Also fill art_shopping_list (include HUD icons: heart/hp, coin/score if needed) and short layout_notes. "
+        "ALWAYS fill background_music[] — one MusicTrack per level: id, level_id (match levels[].id), "
+        "mood (how the BGM should feel), tempo_bpm, loop=true. Also set levels[].music_id to that track id. "
         "Teach → twist → payoff across the level.",
     )
     art_agent = _agent(
@@ -138,11 +149,24 @@ def configure_model(model: str | None = None, *, quiet: bool = False) -> str:
         "If anything fails, ok=false and give concrete revision_instructions for the SVG/HTML. "
         "If it passes, ok=true with empty issues.",
     )
+    sound_agent = _agent(
+        SoundBundle,
+        "You are the Sound Agent for a tiny Phaser 3 student game. "
+        "You do NOT output audio files — you output synthesis recipes (jsfxr-style params) "
+        "that a procedural blip library will turn into WAV files. "
+        "Given mechanics.sfx cues and levels.background_music tracks, produce: "
+        "style_notes (one line), sfx[] BlipRecipe for every cue id, music[] MusicRecipe for every track. "
+        "Keep SFX short (80–350ms). Prefer square/saw/sine/noise for cartoon readability. "
+        "Match mood text (soft hop vs thwack vs sad flop). "
+        "Music: short looping chiptune (major/minor/pentatonic, 4 bars, tempo from the track). "
+        "Ids MUST match the inputs exactly.",
+    )
     assembler_agent = _agent(
         AssemblerPlan,
         "You are the Assembler Agent planner for a Phaser 3 CDN game. "
-        "Produce the playable project's title, subtitle, HUD labels, win/lose text, "
+        "Produce the playable project's title, subtitle, HUD labels (match mechanics.hud), win/lose text, "
         "folder name (kebab-case), and short player tips. "
+        "Assume always-visible HUD for HP/score and audio (SFX + looping BGM) — do not omit them. "
         "Do not invent new mechanics — reflect the concept/mechanics provided.",
     )
     return MODEL
@@ -203,7 +227,9 @@ async def run_mechanics(concept: ConceptDoc, brief: StudioBrief) -> MechanicsDoc
     prompt = (
         f"Concept JSON:\n{concept.model_dump_json(indent=2)}\n\n"
         f"Extra constraints:\n- " + "\n- ".join(brief.constraints or []) + "\n"
-        "Fill sprite_poses thoroughly for the hero and each enemy."
+        "Fill sprite_poses thoroughly for the hero and each enemy.\n"
+        "Fill sfx[] with jump, punch, hurt, stomp, pickup_heal, pickup_power, win, lose "
+        "(ids exact) plus mood notes matching the game's tone."
     )
     result = await mechanics_agent.run(prompt)
     doc = result.output
@@ -211,6 +237,16 @@ async def run_mechanics(concept: ConceptDoc, brief: StudioBrief) -> MechanicsDoc
     if len(doc.sprite_poses) < 6:
         eids = [e.id for e in doc.enemies] or ["snake"]
         doc.sprite_poses = default_sprite_poses(concept.game_type, eids)
+    # Guarantee a playable HUD even if the model dims the fields
+    doc.hud.show_hp = True
+    doc.hud.show_score = True
+    # Guarantee core SFX shopping list
+    from .blips import default_sfx_cues
+
+    have = {c.id for c in doc.sfx}
+    for cue in default_sfx_cues(concept.game_type):
+        if cue.id not in have:
+            doc.sfx.append(cue)
     return doc
 
 
@@ -241,7 +277,8 @@ async def run_levels(
         f"Platforms (`=`) must be at most {jump_tiles} tiles above the nearest lower floor/#/=. "
         f"Stair-step upward climbs. Do not place unreachable floating platforms.\n\n"
         f"Constraints:\n- " + "\n- ".join(brief.constraints or []) + "\n"
-        "Return playable ASCII maps with consistent row lengths."
+        "Return playable ASCII maps with consistent row lengths.\n"
+        "Also return background_music (one track per level) and set each level's music_id."
     )
     result = await levels_agent.run(prompt)
     doc = result.output
@@ -263,6 +300,25 @@ async def run_levels(
         lv.rows = rows
         fixed.append(lv)
     doc.levels = fixed
+
+    # Guarantee background music briefs
+    from .blips import default_music_tracks
+
+    level_ids = [lv.id for lv in doc.levels]
+    if not doc.background_music:
+        doc.background_music = default_music_tracks(level_ids)
+    else:
+        have_lv = {t.level_id for t in doc.background_music}
+        for lid in level_ids:
+            if lid not in have_lv:
+                doc.background_music.extend(default_music_tracks([lid]))
+    # Link music_id on each level
+    by_level = {t.level_id: t for t in doc.background_music}
+    for lv in doc.levels:
+        if not lv.music_id and lv.id in by_level:
+            lv.music_id = by_level[lv.id].id
+        elif not lv.music_id and doc.background_music:
+            lv.music_id = doc.background_music[0].id
     return doc
 
 
@@ -489,6 +545,27 @@ async def revise_html_sprite(
     agent = html_pose_agent if locked_base_html else html_sprite_agent
     result = await agent.run(prompt)
     return result.output
+
+
+async def run_sound(
+    concept: ConceptDoc,
+    mechanics: MechanicsDoc,
+    levels: LevelsDoc,
+) -> SoundBundle:
+    """Sound Agent — emits synthesis recipes (SFX + BGM) from mechanics/levels briefs."""
+    prompt = (
+        f"Game: {concept.title}\nStyle mood: {concept.style}\nPitch: {concept.pitch}\n\n"
+        f"SFX cues from Mechanics (must cover every id):\n"
+        f"{[c.model_dump() for c in mechanics.sfx]}\n\n"
+        f"Background music tracks from Levels:\n"
+        f"{[t.model_dump() for t in levels.background_music]}\n\n"
+        "Emit BlipRecipe for each SFX id and MusicRecipe for each BGM track. "
+        "Keep it cute, readable, short. Match moods."
+    )
+    result = await sound_agent.run(prompt)
+    from .blips import fill_sound_bundle
+
+    return fill_sound_bundle(mechanics.sfx, levels.background_music, result.output)
 
 
 async def run_assembler_plan(

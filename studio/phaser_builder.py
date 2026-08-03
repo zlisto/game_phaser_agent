@@ -35,8 +35,18 @@ def build_phaser_project(
     dump("data/mechanics.json", mechanics.model_dump())
     dump("data/levels.json", levels.model_dump())
 
+    sfx_ids = [c.id for c in mechanics.sfx] or [
+        "jump", "punch", "hurt", "stomp", "pickup_heal", "pickup_power", "win", "lose"
+    ]
+    # Unique, preserve order
+    sfx_ids = list(dict.fromkeys(sfx_ids))
+    music_entries = [
+        {"id": t.id, "level_id": t.level_id, "file": f"assets/bgm_{t.id}.wav"}
+        for t in levels.background_music
+    ]
+
     dump("index.html", _index_html(plan.html_title))
-    dump("js/main.js", _main_js(plan, concept))
+    dump("js/main.js", _main_js(plan, concept, sfx_ids, music_entries))
     dump("js/Player.js", _player_js(concept.game_type))
     dump("js/LevelScene.js", _level_scene_js(concept.game_type))
     dump("README.md", _readme(plan, concept))
@@ -69,7 +79,12 @@ def _index_html(title: str) -> str:
 """
 
 
-def _main_js(plan: AssemblerPlan, concept: ConceptDoc) -> str:
+def _main_js(
+    plan: AssemblerPlan,
+    concept: ConceptDoc,
+    sfx_ids: list[str],
+    music_entries: list[dict],
+) -> str:
     # BootScene MUST be declared before config references it (class TDZ).
     return f"""/* global Phaser, LevelScene */
 const GAME_META = {{
@@ -80,6 +95,8 @@ const GAME_META = {{
   loseText: {json.dumps(plan.lose_text)},
   hud: {json.dumps(plan.hud_labels)},
   tips: {json.dumps(plan.notes_for_player)},
+  sfxIds: {json.dumps(sfx_ids)},
+  music: {json.dumps(music_entries)},
 }};
 
 class BootScene extends Phaser.Scene {{
@@ -94,6 +111,14 @@ class BootScene extends Phaser.Scene {{
     this.load.spritesheet("items", "assets/items_sheet.png", {{ frameWidth: 64, frameHeight: 64 }});
     this.load.spritesheet("tiles", "assets/tileset_sheet.png", {{ frameWidth: 32, frameHeight: 32 }});
     this.load.image("bg", "assets/bg_sheet.png");
+    // SFX (Sound Agent → blips library)
+    (GAME_META.sfxIds || []).forEach((id) => {{
+      this.load.audio(`sfx_${{id}}`, `assets/sfx_${{id}}.wav`);
+    }});
+    // Background music loops
+    (GAME_META.music || []).forEach((m) => {{
+      this.load.audio(`bgm_${{m.id}}`, m.file || `assets/bgm_${{m.id}}.wav`);
+    }});
   }}
   create() {{
     const fmap = this.cache.json.get("frameMap") || {{}};
@@ -136,6 +161,7 @@ const config = {{
   }},
   scene: [BootScene, LevelScene],
   scale: {{ mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }},
+  audio: {{ disableWebAudio: false }},
 }};
 
 window.addEventListener("load", () => {{
@@ -156,7 +182,10 @@ class PlayerController {{
     this.punchBonus = 0;
     this.invulnUntil = 0;
     this.nextAttack = 0;
+    this.punchUntil = 0;
     this.facing = 1;
+    // Punch stays on-screen long enough to read (~400ms)
+    this.punchHoldMs = Math.max(380, (mechanics.player.attack_cooldown_ms || 280) + 100);
 
     this.sprite = scene.physics.add.sprite(x, y, "player", 0);
     this.sprite.setCollideWorldBounds(true);
@@ -195,14 +224,26 @@ class PlayerController {{
       const jumpPressed = Phaser.Input.Keyboard.JustDown(this.keys.SPACE)
         || Phaser.Input.Keyboard.JustDown(this.keys.W)
         || Phaser.Input.Keyboard.JustDown(this.cursors.up);
-      if (jumpPressed && body.blocked.down) {{
-        body.setVelocityY(this.m.player.jump_velocity);
+      const onGround = body.blocked.down || body.touching.down;
+      const onWallL = body.blocked.left || body.touching.left;
+      const onWallR = body.blocked.right || body.touching.right;
+      if (jumpPressed) {{
+        if (onGround) {{
+          body.setVelocityY(this.m.player.jump_velocity);
+          this.scene.playSfx("jump");
+        }} else if (onWallL || onWallR) {{
+          // Mario-style wall jump: kick off wall + boost up
+          const kick = onWallL ? 1 : -1;
+          body.setVelocityY(this.m.player.jump_velocity * 0.95);
+          body.setVelocityX(kick * speed * 1.15);
+          this.facing = kick;
+          this.scene.playSfx("jump");
+        }}
       }}
     }}
 
     if (ax !== 0) {{
       this.facing = ax;
-      // Prefer dedicated left/right frames; only flip if left anim missing
       this.sprite.setFlipX(false);
     }}
 
@@ -221,8 +262,15 @@ class PlayerController {{
       || Phaser.Input.Keyboard.JustDown(this.keys.K);
     if (attack && time >= this.nextAttack) {{
       this.nextAttack = time + this.m.player.attack_cooldown_ms;
+      this.punchUntil = time + this.punchHoldMs;
       play("punch");
+      this.scene.playSfx("punch");
       this.scene.onPlayerAttack(this);
+    }}
+
+    // Hold punch frame so the attack silhouette is readable
+    if (time < this.punchUntil) {{
+      play("punch");
       return;
     }}
 
@@ -233,7 +281,7 @@ class PlayerController {{
     }}
     this.sprite.setAlpha(1);
 
-    if (GAME_META.gameType === "side_scroller" && !body.blocked.down) {{
+    if (GAME_META.gameType === "side_scroller" && !body.blocked.down && !body.touching.down) {{
       play("jump");
     }} else if (ax !== 0 || (GAME_META.gameType === "top_down" && ay !== 0)) {{
       play("run");
@@ -248,6 +296,7 @@ class PlayerController {{
     this.invulnUntil = time + this.m.player.invuln_ms;
     this.sprite.setVelocityY(GAME_META.gameType === "side_scroller" ? -220 : 0);
     this.sprite.setVelocityX(-this.facing * 180);
+    this.scene.playSfx("hurt");
     return true;
   }}
 }}
@@ -261,6 +310,34 @@ class LevelScene extends Phaser.Scene {
 
   init(data) {
     this.levelIndex = data.levelIndex || 0;
+  }
+
+  playSfx(id) {
+    const key = `sfx_${id}`;
+    if (!this.cache.audio.exists(key)) return;
+    try {
+      this.sound.play(key, { volume: 0.55 });
+    } catch (e) { /* autoplay lock until first gesture */ }
+  }
+
+  playLevelMusic() {
+    if (this.bgm) {
+      try { this.bgm.stop(); } catch (e) {}
+      this.bgm = null;
+    }
+    const tracks = GAME_META.music || [];
+    let track = tracks.find((t) => t.level_id === this.level.id);
+    if (!track && this.level.music_id) {
+      track = tracks.find((t) => t.id === this.level.music_id);
+    }
+    if (!track && tracks[this.levelIndex]) track = tracks[this.levelIndex];
+    if (!track) return;
+    const key = `bgm_${track.id}`;
+    if (!this.cache.audio.exists(key)) return;
+    try {
+      this.bgm = this.sound.add(key, { loop: true, volume: 0.28 });
+      this.bgm.play();
+    } catch (e) { /* pending unlock */ }
   }
 
   create() {
@@ -330,20 +407,46 @@ class LevelScene extends Phaser.Scene {
     this.physics.add.overlap(this.player.sprite, this.exits, this.reachExit, null, this);
     this.physics.add.overlap(this.player.sprite, this.snakes, this.touchSnake, null, this);
 
-    this.hud = this.add.text(12, 10, "", {
+    // Score persists across level restarts within one run
+    if (this.registry.get("score") == null) this.registry.set("score", 0);
+    this.hudSpec = this.mechanics.hud || {
+      show_hp: true, show_score: true, show_punch: true, show_level: true,
+      labels: { hp: "HP", score: "Score", punch: "Punch", level: "Level" },
+      score_per_enemy: 100, score_per_item: 10,
+    };
+
+    // Compact image HUD (carrot icons for HP)
+    this.add.rectangle(480, 26, 920, 44, 0x111111, 0.68)
+      .setScrollFactor(0).setDepth(99).setStrokeStyle(2, 0xffffff, 0.3);
+
+    this.hudCarrots = [];
+    const maxHp = this.mechanics.player.max_hp || 5;
+    for (let i = 0; i < maxHp; i++) {
+      const icon = this.add.image(30 + i * 30, 26, "items", 0)
+        .setScrollFactor(0).setDepth(100).setScale(0.42);
+      this.hudCarrots.push(icon);
+    }
+    this.hudScore = this.add.text(30 + maxHp * 30 + 12, 14, "", {
       fontFamily: "Georgia, serif",
       fontSize: "18px",
-      color: "#1b1b1b",
-      backgroundColor: "#ffffffaa",
-      padding: { x: 8, y: 6 },
+      color: "#ffffff",
+      stroke: "#000000",
+      strokeThickness: 3,
     }).setScrollFactor(0).setDepth(100);
-
-    this.banner = this.add.text(480, 40, `${GAME_META.title} — ${this.level.name}`, {
+    this.hudMeta = this.add.text(920, 14, "", {
       fontFamily: "Georgia, serif",
-      fontSize: "22px",
+      fontSize: "16px",
+      color: "#ffffff",
+      stroke: "#000000",
+      strokeThickness: 3,
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
+
+    this.banner = this.add.text(480, 58, `${GAME_META.title} — ${this.level.name}`, {
+      fontFamily: "Georgia, serif",
+      fontSize: "16px",
       color: "#fff",
       stroke: "#000",
-      strokeThickness: 4,
+      strokeThickness: 3,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
 
     this.status = this.add.text(480, 270, "", {
@@ -354,6 +457,36 @@ class LevelScene extends Phaser.Scene {
       strokeThickness: 6,
       align: "center",
     }).setOrigin(0.5).setScrollFactor(0).setDepth(101).setVisible(false);
+
+    // Resume audio on first input (browser autoplay policy)
+    this.input.once("pointerdown", () => {
+      if (this.sound.locked) this.sound.unlock();
+      this.playLevelMusic();
+    });
+    this.input.keyboard.once("keydown", () => {
+      if (this.sound.locked) this.sound.unlock();
+      this.playLevelMusic();
+    });
+    this.playLevelMusic();
+
+    this.refreshHud();
+  }
+
+  refreshHud() {
+    const maxHp = this.mechanics.player.max_hp || this.hudCarrots.length;
+    // Carrot icons = remaining health (image-first HUD)
+    for (let i = 0; i < this.hudCarrots.length; i++) {
+      const full = i < this.player.hp;
+      this.hudCarrots[i].setAlpha(full ? 1 : 0.22);
+      this.hudCarrots[i].setTint(full ? 0xffffff : 0x666666);
+    }
+    const score = this.registry.get("score") || 0;
+    this.hudScore.setText(`★ ${score}`);
+    let punchBit = "";
+    if (this.hudSpec && this.hudSpec.show_punch !== false) {
+      punchBit = `  ·  🥊${this.player.damage}`;
+    }
+    this.hudMeta.setText(`${this.level.name}${punchBit}`);
   }
 
   enemyStats() {
@@ -369,15 +502,25 @@ class LevelScene extends Phaser.Scene {
 
   collectCarrot(_p, carrot) {
     carrot.destroy();
-    const item = (this.mechanics.items || []).find((x) => x.id === "carrot");
+    const item = (this.mechanics.items || []).find(
+      (x) => x.id === "carrot" || x.id === "loose_carrot"
+    );
     const heal = item ? item.value : 1;
     this.player.hp = Math.min(this.mechanics.player.max_hp, this.player.hp + heal);
+    const pts = (this.hudSpec && this.hudSpec.score_per_item) || 10;
+    this.registry.set("score", (this.registry.get("score") || 0) + pts);
+    this.playSfx("pickup_heal");
+    this.refreshHud();
   }
 
   collectEgg(_p, egg) {
     egg.destroy();
     const item = (this.mechanics.items || []).find((x) => x.id === "easter_egg");
     this.player.punchBonus += item ? item.value : 1;
+    const pts = (this.hudSpec && this.hudSpec.score_per_item) || 10;
+    this.registry.set("score", (this.registry.get("score") || 0) + pts);
+    this.playSfx("pickup_power");
+    this.refreshHud();
   }
 
   reachExit() {
@@ -393,18 +536,32 @@ class LevelScene extends Phaser.Scene {
   touchSnake(playerSprite, snake) {
     if (this.gameOver) return;
     const time = this.time.now;
+    // Stomp: only safe contact — jump on head
     const stomp = GAME_META.gameType === "side_scroller"
       && playerSprite.body.velocity.y > 0
       && playerSprite.y < snake.y - 8;
     if (stomp) {
       snake.hp -= 1;
       playerSprite.setVelocityY(-280);
-      if (snake.hp <= 0) snake.destroy();
+      if (snake.hp <= 0) this.defeatEnemy(snake);
+      else this.playSfx("stomp");
+      this.refreshHud();
       return;
     }
-    if (this.player.hurt(this.enemyDamage(), time) && this.player.hp <= 0) {
-      this.endGame(false);
-    }
+    // Punch is handled in onPlayerAttack — any body walk/run touch = instant loss
+    this.playSfx("hurt");
+    this.player.hp = 0;
+    this.refreshHud();
+    this.endGame(false);
+  }
+
+  defeatEnemy(snake) {
+    if (!snake.active) return;
+    snake.destroy();
+    const pts = (this.hudSpec && this.hudSpec.score_per_enemy) || 100;
+    this.registry.set("score", (this.registry.get("score") || 0) + pts);
+    this.playSfx("stomp");
+    this.refreshHud();
   }
 
   onPlayerAttack(player) {
@@ -418,19 +575,31 @@ class LevelScene extends Phaser.Scene {
       if (Math.abs(dx) < range && Math.abs(dy) < 36) {
         snake.hp -= player.damage;
         snake.setVelocityX(player.facing * 120);
-        if (snake.hp <= 0) snake.destroy();
+        if (snake.hp <= 0) this.defeatEnemy(snake);
       }
     });
+    this.refreshHud();
   }
 
   endGame(won) {
     this.gameOver = true;
-    this.status.setText(won ? GAME_META.winText : GAME_META.loseText);
+    if (this.bgm) {
+      try { this.bgm.stop(); } catch (e) {}
+    }
+    this.playSfx(won ? "win" : "lose");
+    const score = this.registry.get("score") || 0;
+    this.status.setText(
+      (won ? GAME_META.winText : GAME_META.loseText) + `\nScore: ${score}`
+    );
     this.status.setVisible(true);
     this.player.sprite.setVelocity(0, 0);
     this.time.delayedCall(1800, () => {
-      if (won) this.scene.restart({ levelIndex: 0 });
-      else this.scene.restart({ levelIndex: this.levelIndex });
+      if (won) {
+        this.registry.set("score", 0);
+        this.scene.restart({ levelIndex: 0 });
+      } else {
+        this.scene.restart({ levelIndex: this.levelIndex });
+      }
     });
   }
 
@@ -446,12 +615,7 @@ class LevelScene extends Phaser.Scene {
       if (s.body.blocked.left) s.setVelocityX(this.enemySpeed());
       if (s.body.blocked.right) s.setVelocityX(-this.enemySpeed());
     });
-    this.hud.setText(
-      `${GAME_META.hud.level}: ${this.level.name}\n` +
-      `${GAME_META.hud.hp}: ${this.player.hp}/${this.mechanics.player.max_hp}   ` +
-      `${GAME_META.hud.punch}: ${this.player.damage}\n` +
-      `Move + ${GAME_META.gameType === "side_scroller" ? "Space jump" : "WASD"} · J/K punch · stomp snakes`
-    );
+    this.refreshHud();
   }
 }
 """
@@ -474,12 +638,18 @@ cd {plan.game_folder_name}
 npx --yes serve .
 ```
 Then open the printed localhost URL (do not use `file://`).
+Click or press a key once so the browser unlocks audio (BGM + SFX).
 
 ## Controls
 - Move: arrows / WASD
 - Jump (side-scroller): Space / W / Up
-- Punch: J / K
-- Stomp snakes from above (side-scroller)
+- Wall-jump: jump while touching a platform side (Mario-style)
+- Punch: J / K (pose holds briefly so you can see it)
+- Stomp snakes from above or punch them — walking into a snake body is instant defeat
+
+## Audio
+- SFX from Mechanics cues → Sound Agent blip recipes → WAV
+- Per-level background music loops
 
 ## Tips
 {tips}

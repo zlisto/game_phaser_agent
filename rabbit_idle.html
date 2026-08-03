@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boxing Rabbit — Idle</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    /* Fixed canvas for consistent screenshots */
+    .stage {
+      width: 512px;
+      height: 512px;
+      position: relative;
+      margin: 0 auto;
+      background: transparent;
+    }
+
+    .rabbit {
+      position: absolute;
+      left: 50%;
+      top: 54%;
+      width: 280px;
+      height: 320px;
+      transform: translate(-50%, -50%);
+    }
+
+    .rabbit svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="rabbit" id="rabbit">
+      <!--
+        Pose-friendly groups:
+        - ear-left / ear-right
+        - head
+        - body
+        - arm-left / arm-right (+ gloves)
+        - leg-left / leg-right
+      -->
+      <svg viewBox="0 0 280 320" xmlns="http://www.w3.org/2000/svg" aria-label="Boxing rabbit idle pose">
+        <defs>
+          <radialGradient id="fur" cx="40%" cy="35%" r="70%">
+            <stop offset="0%" stop-color="#f7f0e6" />
+            <stop offset="55%" stop-color="#e8d5b8" />
+            <stop offset="100%" stop-color="#c9a87c" />
+          </radialGradient>
+          <radialGradient id="belly" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#fff8ef" />
+            <stop offset="100%" stop-color="#f0e2cc" />
+          </radialGradient>
+          <linearGradient id="gloveRed" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ff5a5a" />
+            <stop offset="45%" stop-color="#e12222" />
+            <stop offset="100%" stop-color="#9b0f0f" />
+          </linearGradient>
+          <linearGradient id="gloveShade" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35" />
+            <stop offset="100%" stop-color="#000000" stop-opacity="0.25" />
+          </linearGradient>
+          <linearGradient id="innerEar" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffb7c5" />
+            <stop offset="100%" stop-color="#f07a92" />
+          </linearGradient>
+        </defs>
+
+        <!-- LEFT LEG -->
+        <g id="leg-left" transform="translate(0,0)">
+          <ellipse cx="105" cy="278" rx="28" ry="18" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5" />
+          <ellipse cx="112" cy="282" rx="10" ry="6" fill="#d4b896" />
+        </g>
+
+        <!-- RIGHT LEG -->
+        <g id="leg-right" transform="translate(0,0)">
+          <ellipse cx="175" cy="278" rx="28" ry="18" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5" />
+          <ellipse cx="182" cy="282" rx="10" ry="6" fill="#d4b896" />
+        </g>
+
+        <!-- BODY -->
+        <g id="body">
+          <ellipse cx="140" cy="210" rx="62" ry="72" fill="url(#fur)" stroke="#8a6a45" stroke-width="3" />
+          <ellipse cx="140" cy="220" rx="38" ry="48" fill="url(#belly)" />
+          <!-- soft chest shading -->
+          <ellipse cx="140" cy="195" rx="22" ry="14" fill="#ffffff" opacity="0.25" />
+        </g>
+
+        <!-- LEFT ARM + GLOVE (rear / guarding) -->
+        <g id="arm-left" transform="translate(0,0)">
+          <ellipse cx="72" cy="195" rx="18" ry="32" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5"
+                   transform="rotate(-25 72 195)" />
+          <!-- boxing glove -->
+          <g id="glove-left" transform="translate(38, 210) rotate(-20)">
+            <ellipse cx="22" cy="28" rx="30" ry="26" fill="url(#gloveRed)" stroke="#6b0a0a" stroke-width="2.5" />
+            <ellipse cx="22" cy="28" rx="30" ry="26" fill="url(#gloveShade)" />
+            <!-- wrist cuff -->
+            <rect x="8" y="0" width="28" height="16" rx="7" fill="#f5f5f5" stroke="#888" stroke-width="2" />
+            <rect x="10" y="4" width="24" height="4" rx="2" fill="#ddd" />
+            <!-- thumb bump -->
+            <ellipse cx="0" cy="24" rx="12" ry="10" fill="url(#gloveRed)" stroke="#6b0a0a" stroke-width="2" />
+          </g>
+        </g>
+
+        <!-- RIGHT ARM + GLOVE (front / ready) -->
+        <g id="arm-right" transform="translate(0,0)">
+          <ellipse cx="208" cy="190" rx="18" ry="30" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5"
+                   transform="rotate(30 208 190)" />
+          <g id="glove-right" transform="translate(210, 195) rotate(15)">
+            <ellipse cx="28" cy="30" rx="32" ry="28" fill="url(#gloveRed)" stroke="#6b0a0a" stroke-width="2.5" />
+            <ellipse cx="28" cy="30" rx="32" ry="28" fill="url(#gloveShade)" />
+            <rect x="12" y="0" width="30" height="16" rx="7" fill="#f5f5f5" stroke="#888" stroke-width="2" />
+            <rect x="14" y="4" width="26" height="4" rx="2" fill="#ddd" />
+            <ellipse cx="52" cy="26" rx="13" ry="11" fill="url(#gloveRed)" stroke="#6b0a0a" stroke-width="2" />
+          </g>
+        </g>
+
+        <!-- HEAD -->
+        <g id="head">
+          <!-- LEFT EAR -->
+          <g id="ear-left" transform="rotate(-12 100 70)">
+            <ellipse cx="100" cy="55" rx="18" ry="52" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5" />
+            <ellipse cx="100" cy="58" rx="9" ry="36" fill="url(#innerEar)" />
+          </g>
+
+          <!-- RIGHT EAR -->
+          <g id="ear-right" transform="rotate(12 180 70)">
+            <ellipse cx="180" cy="55" rx="18" ry="52" fill="url(#fur)" stroke="#8a6a45" stroke-width="2.5" />
+            <ellipse cx="180" cy="58" rx="9" ry="36" fill="url(#innerEar)" />
+          </g>
+
+          <!-- face -->
+          <ellipse cx="140" cy="120" rx="58" ry="52" fill="url(#fur)" stroke="#8a6a45" stroke-width="3" />
+
+          <!-- cheeks -->
+          <ellipse cx="100" cy="130" rx="14" ry="10" fill="#f5a8a8" opacity="0.45" />
+          <ellipse cx="180" cy="130" rx="14" ry="10" fill="#f5a8a8" opacity="0.45" />
+
+          <!-- eyes -->
+          <ellipse cx="118" cy="115" rx="9" ry="11" fill="#1a1a1a" />
+          <ellipse cx="162" cy="115" rx="9" ry="11" fill="#1a1a1a" />
+          <circle cx="121" cy="111" r="3.2" fill="#ffffff" />
+          <circle cx="165" cy="111" r="3.2" fill="#ffffff" />
+          <circle cx="115" cy="118" r="1.4" fill="#ffffff" opacity="0.7" />
+          <circle cx="159" cy="118" r="1.4" fill="#ffffff" opacity="0.7" />
+
+          <!-- brows (determined boxer look) -->
+          <path d="M105 98 Q118 92 130 98" fill="none" stroke="#6b4e2e" stroke-width="3.5" stroke-linecap="round" />
+          <path d="M150 98 Q162 92 175 98" fill="none" stroke="#6b4e2e" stroke-width="3.5" stroke-linecap="round" />
+
+          <!-- nose -->
+          <ellipse cx="140" cy="135" rx="8" ry="6" fill="#3a2a1a" />
+          <ellipse cx="138" cy="133" rx="2.5" ry="1.8" fill="#ffffff" opacity="0.45" />
+
+          <!-- mouth -->
+          <path d="M132 145 Q140 152 148 145" fill="none" stroke="#5a4030" stroke-width="2.5" stroke-linecap="round" />
+
+          <!-- whiskers -->
+          <g stroke="#8a6a45" stroke-width="1.5" stroke-linecap="round" opacity="0.7">
+            <line x1="95" y1="138" x2="70" y2="132" />
+            <line x1="95" y1="144" x2="68" y2="144" />
+            <line x1="95" y1="150" x2="72" y2="156" />
+            <line x1="185" y1="138" x2="210" y2="132" />
+            <line x1="185" y1="144" x2="212" y2="144" />
+            <line x1="185" y1="150" x2="208" y2="156" />
+          </g>
+        </g>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

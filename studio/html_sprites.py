@@ -21,7 +21,6 @@ from .agents import (
     revise_html_sprite,
 )
 from .models import ArtBundle, ConceptDoc, CriticFeedback, SpriteSpec
-from .render_art import render_world_art
 
 CELL = 256
 GAME_CELL = 64
@@ -252,6 +251,155 @@ def _alias_phaser_sheets(assets: Path, frame_map: dict, sheets_written: list[str
                 sheets_written.append("snake_sheet.png")
 
 
+# Phaser BootScene always loads assets/snake_sheet.png — never skip enemy art entirely.
+_SPRITE_CAP = 16
+_ACTION_PRIORITY = {
+    "idle": 0,
+    "run": 1,
+    "move": 1,
+    "slither": 1,
+    "jump": 2,
+    "punch": 3,
+    "hurt": 4,
+    "wall_jump": 5,
+    "wall_slide": 6,
+    "stomp": 7,
+    "strike": 8,
+    "defeated": 9,
+    "stomp_bounce": 10,
+    "lose": 11,
+    "win": 12,
+}
+
+
+def _sprite_action_rank(spec: SpriteSpec) -> tuple:
+    act = (spec.action or "").lower()
+    pri = _ACTION_PRIORITY.get(act, 50)
+    face = 0 if (spec.facing or "").lower() == "right" else 1
+    return (pri, face, spec.id)
+
+
+def _cap_sprites_fairly(sprites: list[SpriteSpec], max_total: int = _SPRITE_CAP) -> list[SpriteSpec]:
+    """Cap pose count while ensuring every character gets frames (not just the first N).
+
+    Naive ``sprites[:16]`` drops all enemy poses when the player list is long, which
+    leaves games without snake_sheet.png and Phaser fails to boot.
+    """
+    if len(sprites) <= max_total:
+        return list(sprites)
+
+    by_character: dict[str, list[SpriteSpec]] = {}
+    character_order: list[str] = []
+    for s in sprites:
+        if s.character_id not in by_character:
+            character_order.append(s.character_id)
+            by_character[s.character_id] = []
+        by_character[s.character_id].append(s)
+
+    n_chars = len(character_order)
+    # Give every character a share; prefer even counts for L/R pairs.
+    base_each = max(2, max_total // max(n_chars, 1))
+    if base_each % 2:
+        base_each = max(2, base_each - 1)
+
+    per_char: dict[str, int] = {}
+    remaining = max_total
+    for cid in character_order:
+        take = min(base_each, remaining, len(by_character[cid]))
+        if take > 1 and take % 2:
+            take -= 1
+        per_char[cid] = take
+        remaining -= take
+
+    # Distribute leftovers to earlier characters (player first).
+    while remaining > 0:
+        progressed = False
+        for cid in character_order:
+            if remaining <= 0:
+                break
+            if per_char[cid] < len(by_character[cid]):
+                per_char[cid] += 1
+                remaining -= 1
+                progressed = True
+        if not progressed:
+            break
+
+    selected: list[SpriteSpec] = []
+    for cid in character_order:
+        ranked = sorted(by_character[cid], key=_sprite_action_rank)
+        selected.extend(ranked[: per_char[cid]])
+    return selected
+
+
+def _write_placeholder_snake_sheet(path: Path, cells: int = 6) -> None:
+    """Simple solid green snake frames so Phaser can always load the enemy sheet."""
+    cell = GAME_CELL
+    sheet = Image.new("RGBA", (cell * cells, cell), (0, 0, 0, 0))
+    for i in range(cells):
+        frame = Image.new("RGBA", (cell, cell), (0, 0, 0, 0))
+        # Body wave offset per frame
+        ox = 4 + (i % 2) * 2
+        for y in range(28, 48):
+            for x in range(12 + ox, 50 + ox):
+                if 0 <= x < cell and 0 <= y < cell:
+                    frame.putpixel((x, y), (46, 140, 70, 255))
+        # Head (left or right)
+        face_right = i % 2 == 0
+        hx = 46 if face_right else 10
+        for y in range(22, 40):
+            for x in range(hx, hx + 12):
+                if 0 <= x < cell:
+                    frame.putpixel((x, y), (56, 170, 80, 255))
+        # Eye
+        eye_x = hx + (8 if face_right else 2)
+        for y in range(26, 30):
+            for x in range(eye_x, eye_x + 3):
+                if 0 <= x < cell:
+                    frame.putpixel((x, y), (20, 20, 20, 255))
+        sheet.paste(frame, (i * cell, 0))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(path)
+
+
+def _ensure_snake_sheet(
+    assets: Path, frame_map: dict, sheets_written: list[str]
+) -> None:
+    """Guarantee assets/snake_sheet.png + a non-player frame_map entry exist."""
+    snake_path = assets / "snake_sheet.png"
+    enemy_keys = [k for k in frame_map if k != "player"]
+
+    if not snake_path.exists():
+        aliased = False
+        for eid in enemy_keys:
+            src = assets / f"{eid}_sheet.png"
+            if src.exists():
+                Image.open(src).save(snake_path)
+                aliased = True
+                break
+        if not aliased:
+            print("      warn: no enemy sheet — writing placeholder snake_sheet.png")
+            _write_placeholder_snake_sheet(snake_path)
+
+    if "snake_sheet.png" not in sheets_written:
+        sheets_written.append("snake_sheet.png")
+
+    if not enemy_keys:
+        # BootScene looks up any non-player key; insert a minimal entry.
+        frame_map["sneaky_snake"] = {
+            "sheet": "assets/snake_sheet.png",
+            "frame_width": GAME_CELL,
+            "frame_height": GAME_CELL,
+            "frames": [
+                {"index": 0, "id": "sneaky_snake_move_right", "action": "move", "facing": "right"},
+                {"index": 1, "id": "sneaky_snake_move_left", "action": "move", "facing": "left"},
+                {"index": 2, "id": "sneaky_snake_idle_right", "action": "idle", "facing": "right"},
+                {"index": 3, "id": "sneaky_snake_idle_left", "action": "idle", "facing": "left"},
+                {"index": 4, "id": "sneaky_snake_hurt_right", "action": "hurt", "facing": "right"},
+                {"index": 5, "id": "sneaky_snake_hurt_left", "action": "hurt", "facing": "left"},
+            ],
+        }
+
+
 async def run_character_art_pipeline(
     out_dir: Path,
     concept: ConceptDoc,
@@ -259,18 +407,22 @@ async def run_character_art_pipeline(
     critic_rounds: int = 1,
 ) -> dict:
     """
-    Per character_id:
-      1) Lock base HTML (critic loop)
-      2) Pose all other frames FROM that locked HTML (parallel)
-      3) Combine screenshots into a sheet
+    Parallel art:
+      Level A — all characters in parallel
+      Level B — within each character: lock base, then all poses in parallel
+      Level C — world tiles / items / BG (threaded parallel draws)
     """
     work = out_dir / "art_work"
     assets = out_dir / "assets"
     assets.mkdir(parents=True, exist_ok=True)
 
-    sprites = art.sprites[:16]
-    if len(art.sprites) > 16:
-        print(f"      note: capping sprites {len(art.sprites)} -> 16")
+    sprites = _cap_sprites_fairly(art.sprites, _SPRITE_CAP)
+    if len(art.sprites) > len(sprites):
+        n_chars = len({s.character_id for s in art.sprites})
+        print(
+            f"      note: capping sprites {len(art.sprites)} -> {len(sprites)} "
+            f"(fair share across {n_chars} characters)"
+        )
 
     # Preserve brief order, group by character
     by_character: dict[str, list[SpriteSpec]] = {}
@@ -281,49 +433,45 @@ async def run_character_art_pipeline(
             by_character[s.character_id] = []
         by_character[s.character_id].append(s)
 
-    frame_map: dict[str, dict] = {}
-    all_critiques: dict[str, list] = {}
-    sheet_pairs: dict[str, list[tuple[SpriteSpec, Path]]] = {}
-    sheets_written: list[str] = []
-
-    for character_id in character_order:
+    async def _build_char(character_id: str) -> dict:
         specs = by_character[character_id]
         base_spec = _pick_base_spec(specs)
 
         locked_html, base_png, base_critiques = await build_base_character(
             base_spec, concept, art, work, critic_rounds=critic_rounds
         )
-        all_critiques[base_spec.id] = base_critiques
         (work / "html" / f"{character_id}_base.html").write_text(locked_html, encoding="utf-8")
 
         other = [s for s in specs if s.id != base_spec.id]
 
-        async def _one(spec: SpriteSpec) -> tuple[SpriteSpec, Path, list[dict]]:
-            png, critiques = await build_pose_from_base(
-                spec, locked_html, concept, art, work, critic_rounds=critic_rounds
+        async def _one_pose(spec: SpriteSpec, base_html: str = locked_html):
+            png, pose_critiques = await build_pose_from_base(
+                spec, base_html, concept, art, work, critic_rounds=critic_rounds
             )
-            return spec, png, critiques
+            return spec, png, pose_critiques
 
-        # Pose fan-out in parallel (like the lecture slide)
-        results = await asyncio.gather(*[_one(s) for s in other]) if other else []
+        pose_results = (
+            await asyncio.gather(*[_one_pose(s) for s in other]) if other else []
+        )
 
-        # Keep original brief order for sheet cells
         path_by_id = {base_spec.id: base_png}
-        for spec, png, critiques in results:
+        char_critiques: dict[str, list] = {base_spec.id: base_critiques}
+        for spec, png, pose_critiques in pose_results:
             path_by_id[spec.id] = png
-            all_critiques[spec.id] = critiques
+            char_critiques[spec.id] = pose_critiques
 
         ordered_pairs: list[tuple[SpriteSpec, Path]] = []
         for s in specs:
             if s.id in path_by_id:
                 ordered_pairs.append((s, path_by_id[s.id]))
-        sheet_pairs[character_id] = ordered_pairs
 
         paths = [p for _, p in ordered_pairs]
         ids = [s.id for s, _ in ordered_pairs]
         sheet_name = f"{character_id}_sheet.png"
-        combine_character_sheet(paths, assets / sheet_name, cell=GAME_CELL)
-        frame_map[character_id] = {
+        await asyncio.to_thread(
+            combine_character_sheet, paths, assets / sheet_name, GAME_CELL
+        )
+        fmap = {
             "sheet": f"assets/{sheet_name}",
             "frame_width": GAME_CELL,
             "frame_height": GAME_CELL,
@@ -338,15 +486,37 @@ async def run_character_art_pipeline(
                 for i, sid in enumerate(ids)
             ],
         }
-        sheets_written.append(sheet_name)
-        print(f"      sheet -> assets/{sheet_name} ({len(ids)} frames, base-locked)")
+        print(
+            f"      sheet -> assets/{sheet_name} ({len(ids)} frames, parallel chars+poses)"
+        )
+        return {
+            "character_id": character_id,
+            "sheet_name": sheet_name,
+            "frame_map": fmap,
+            "critiques": char_critiques,
+        }
+
+    print(f"      parallel characters: {character_order}")
+    char_results = await asyncio.gather(*[_build_char(cid) for cid in character_order])
+
+    frame_map: dict[str, dict] = {}
+    all_critiques: dict[str, list] = {}
+    sheets_written: list[str] = []
+    for res in char_results:
+        cid = res["character_id"]
+        frame_map[cid] = res["frame_map"]
+        all_critiques.update(res["critiques"])
+        sheets_written.append(res["sheet_name"])
 
     _alias_phaser_sheets(assets, frame_map, sheets_written)
     if "player" not in frame_map and frame_map:
         first = next(iter(frame_map))
         frame_map["player"] = frame_map[first]
+    _ensure_snake_sheet(assets, frame_map, sheets_written)
 
-    world_files = render_world_art(assets, art, concept)
+    from .render_art import render_world_art_parallel
+
+    world_files = await render_world_art_parallel(assets, art, concept)
 
     (out_dir / "data").mkdir(exist_ok=True)
     (out_dir / "data" / "art.json").write_text(art.model_dump_json(indent=2), encoding="utf-8")

@@ -79,6 +79,47 @@ class PoseNeed(BaseModel):
     purpose: str = Field(description="When this pose plays in gameplay")
 
 
+class HudSpec(BaseModel):
+    """What the Assembler must always show on screen (Mechanics decides)."""
+
+    show_hp: bool = True
+    show_score: bool = True
+    show_punch: bool = True
+    show_level: bool = True
+    labels: dict[str, str] = Field(
+        default_factory=lambda: {
+            "hp": "HP",
+            "score": "Score",
+            "punch": "Punch",
+            "level": "Level",
+        }
+    )
+    score_per_enemy: int = 100
+    score_per_item: int = 10
+
+
+class SfxCue(BaseModel):
+    """One sound effect the game must play — Mechanics lists; Sound Agent synthesizes."""
+
+    id: str = Field(description="Stable id: jump, punch, hurt, stomp, pickup_heal, pickup_power, win, lose")
+    trigger: str = Field(description="When it fires, e.g. player leaves ground, snake defeated")
+    mood: str = Field(
+        description="Short design note for Sound Agent, e.g. soft cotton thump, bright chime"
+    )
+    category: Literal["player", "combat", "pickup", "ui", "world"] = "player"
+
+
+class MusicTrack(BaseModel):
+    """Background music brief — Levels designs; Sound Agent synthesizes a loop."""
+
+    id: str = Field(description="Stable id, e.g. meadow_day, cave_danger")
+    level_id: str = Field(description="Which level map id this track is for")
+    mood: str = Field(description="Musical mood / instrumentation note")
+    tempo_bpm: int = Field(default=120, ge=60, le=200)
+    loop: bool = True
+    notes: str = ""
+
+
 class MechanicsDoc(BaseModel):
     game_type: GameType
     controls: KeyMap
@@ -88,6 +129,14 @@ class MechanicsDoc(BaseModel):
     win_condition: str
     lose_condition: str
     juice_notes: list[str] = Field(default_factory=list)
+    hud: HudSpec = Field(
+        default_factory=HudSpec,
+        description="On-screen HUD the Assembler must wire up",
+    )
+    sfx: list[SfxCue] = Field(
+        default_factory=list,
+        description="SFX shopping list for the Sound Agent (event blips)",
+    )
     sprite_poses: list[PoseNeed] = Field(
         default_factory=list,
         description="All character poses the Art Agent must draw",
@@ -113,6 +162,10 @@ class LevelMap(BaseModel):
         }
     )
     notes: str = ""
+    music_id: str = Field(
+        default="",
+        description="Id of background_music track for this level",
+    )
 
 
 class ArtShoppingList(BaseModel):
@@ -129,6 +182,10 @@ class LevelsDoc(BaseModel):
     levels: list[LevelMap]
     art_shopping_list: ArtShoppingList
     layout_notes: list[str] = Field(default_factory=list)
+    background_music: list[MusicTrack] = Field(
+        default_factory=list,
+        description="One mood track per level for the Sound Agent",
+    )
 
 
 class Palette(BaseModel):
@@ -189,8 +246,49 @@ class AssemblerPlan(BaseModel):
     notes_for_player: list[str] = Field(default_factory=list)
 
 
+class BlipRecipe(BaseModel):
+    """jsfxr-style params the Sound Agent emits; blips.py turns them into WAV."""
+
+    id: str
+    wave: Literal["square", "saw", "sine", "noise"] = "square"
+    start_freq_hz: float = 440.0
+    end_freq_hz: float = 220.0
+    duration_ms: int = Field(default=120, ge=30, le=2000)
+    volume: float = Field(default=0.45, ge=0.05, le=1.0)
+    attack_ms: int = Field(default=5, ge=0, le=200)
+    decay_ms: int = Field(default=80, ge=10, le=1500)
+    vibrato_hz: float = 0.0
+    vibrato_depth: float = 0.0
+    noise_amount: float = Field(default=0.0, ge=0.0, le=1.0)
+    notes: str = ""
+
+
+class MusicRecipe(BaseModel):
+    """Simple chiptune loop params for background music."""
+
+    id: str
+    level_id: str
+    root_midi: int = Field(default=60, ge=36, le=84)
+    scale: Literal["major", "minor", "pentatonic"] = "major"
+    tempo_bpm: int = Field(default=120, ge=60, le=200)
+    bars: int = Field(default=4, ge=2, le=8)
+    wave: Literal["square", "triangle", "sine"] = "square"
+    volume: float = Field(default=0.18, ge=0.05, le=0.4)
+    mood_note: str = ""
+
+
+class SoundBundle(BaseModel):
+    """Output of the Sound Agent — synthesis recipes, not final WAVs."""
+
+    style_notes: str = ""
+    sfx: list[BlipRecipe] = Field(default_factory=list)
+    music: list[MusicRecipe] = Field(default_factory=list)
+
+
 class StudioReport(BaseModel):
     output_dir: str
     files_created: list[str]
     how_to_run: str
     summary: str
+    elapsed_seconds: float = 0.0
+    elapsed_human: str = ""

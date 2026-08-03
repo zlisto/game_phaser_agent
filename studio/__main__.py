@@ -106,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[out] games/{out_name}")
         report = run_studio_sync(brief, root=args.root)
 
+    if report.elapsed_human:
+        print(f"\nTotal time: {report.elapsed_human}")
     print("\nFiles:")
     for f in report.files_created:
         print(" -", f)

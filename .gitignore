@@ -24,3 +24,6 @@ games/*/
 
 # Local art scratch if any
 *.log
+
+# Reveal Pixel Pass screenshots (bulk PNGs)
+slide_qa/*.png

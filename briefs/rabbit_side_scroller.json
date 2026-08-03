@@ -7,9 +7,12 @@
   "constraints": [
     "Exactly 2 side-scrolling levels",
     "Hero is a boxing rabbit",
-    "Enemies are snakes that can be punched or stomped",
+    "Enemies are snakes: can ONLY be defeated by jumping on their head (stomp) or punching them. Walking or running into a snake body is instant defeat (game over) — not gradual HP chips.",
     "Carrots restore health",
     "Easter eggs increase punch strength",
+    "HUD must be compact and image-first: show health as a row of small carrot icons (not long HP text), small score number, keep punch power minimal; avoid a wall of HUD text",
+    "Player can wall-jump (Mario style): while airborn against the side of a solid platform/wall, jump again to leap off the wall and climb higher (double-jump via wall contact)",
+    "Punch attack pose must linger on screen long enough (~350–450ms) so the punch silhouette is clearly readable",
     "Give a short story about what the rabbit wants (save the harvest / village feast)",
     "Keep maps tiny and finishable (width about 36-45 tiles)",
     "Cute readable art style, high contrast, DETAILED character sprites (face, gloves, limbs)",
